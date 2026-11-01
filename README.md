@@ -22,7 +22,7 @@ Spring Boot 기반의 개인·소규모 팀용 워크스페이스입니다.
 |------|------|
 | 인증·권한 | 세션 로그인, `fd_auth`(01 관리 / 02 일반), 메뉴별 접근 제어 |
 | 메뉴 | 대·중·소 트리, 권한 다중 매핑, 관리 화면 |
-| 홈 | 리마인드 캘린더 · Open-Meteo 날씨(GPS/검색) · 뉴스/주식 라이브, 인바디 요약 |
+| 홈 | 리마인드 캘린더 · Open-Meteo 날씨(GPS/검색) · 인바디 요약 · 실시간 채팅 |
 | 리마인드 | 사용자별 일정 CRUD · 캘린더 (개인 페이지) |
 | 문의 트래커 | CRUD · SLA · 차트 · 사용자별 소유 (01 콤보) |
 | 인바디 케어 | 체성분 입력·기간 조회·추이 (소유자 필터, 01은 타인 조회) |
@@ -48,17 +48,17 @@ Browser → Windows:8080 → WslPortBridge → Tomcat(/flowdesk) → MySQL(cx_tr
 
 ## 문제 해결 사례 (포폴 포인트)
 
-1. **YouTube iframe 차단** — CSP `frame-src` 보정 · 채널 임베드 정책 대응  
-2. **데이터 소유권** — 문의·인바디 `create_user` · 01 대상 사용자 콤보  
-3. **WSL2 외부 접속** — Windows 포트 브릿지 + 방화벽으로 LAN/LTE 검증  
-4. **메뉴 계층** — DB 트리 + 접이식 내비 · restricted는 admin·hwlee  
+1. **데이터 소유권** — 문의·인바디 `create_user` · 01 대상 사용자 콤보 (guest는 본인만)  
+2. **WSL2 외부 접속** — Windows 포트 브릿지 + 방화벽으로 LAN 검증  
+3. **메뉴 계층** — DB 트리 + 접이식 내비 · restricted는 admin·hwlee  
+4. **업로드 경로** — 상대경로 cwd 이탈로 첨부 깨짐 → `FLOWDESK_DATA_DIR` 절대경로 고정
 
 ## 화면
 
 | 메뉴 | 파일 | 설명 |
 |------|------|------|
 | 로그인 | `login.html` | 세션 · 접속 로그(기기/GPS) |
-| 홈 | `home.html` | 라이브 · 리마인드 · 날씨 · 인바디 요약 |
+| 홈 | `home.html` | 리마인드 · 날씨 · 인바디 요약 · 채팅 |
 | 문의 트래커 | `index.html` | CX CRUD · SLA · 소유자 콤보 |
 | 인바디 케어 | `health.html` | 체성분 입력 · 추이 |
 | 리마인드 | `remind.html` | 일정 CRUD · 캘린더 |

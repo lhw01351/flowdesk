@@ -35,7 +35,7 @@ Windows + WSL2 Tomcat + MySQL 환경에서 실제 접속 가능한 서비스로 
 |------|------|
 | 인증·권한 | 세션 로그인, `fd_auth`(01/02), 메뉴·API 접근 제어 |
 | 메뉴 | 대·중·소 트리, 권한 다중 매핑, restricted(회원·메뉴)는 admin·hwlee |
-| 홈 | 뉴스/주식 라이브 · 리마인드 캘린더 · Open-Meteo 날씨 · 인바디 요약 |
+| 홈 | 리마인드 캘린더 · Open-Meteo 날씨 · 인바디 요약 · 실시간 채팅 |
 | 리마인드 | 사용자별 일정 CRUD · 캘린더 |
 | 문의 트래커 | CRUD · SLA · 차트 · **사용자별 소유** (01은 대상 사용자 콤보) |
 | 인바디 케어 | 체성분 입력·추이 · **create_user 소유** (01은 교차 조회) |
@@ -55,7 +55,7 @@ Windows + WSL2 Tomcat + MySQL 환경에서 실제 접속 가능한 서비스로 
    - 기존 문의 데이터는 `hwlee`로 백필
 
 3. **운영형 보안 헤더**  
-   CSP에 YouTube·korulive·Open-Meteo `frame-src`/`connect-src` 반영 (iframe·날씨 API 실사용)
+   CSP에 Open-Meteo·WebSocket(채팅) 등 실사용 origin만 허용 (`connect-src` / `img-src` 등)
 
 4. **WSL2 실배포**  
    Tomcat WAR + Windows `WslPortBridge`·방화벽으로 LAN/LTE 외부 접속 검증
@@ -84,7 +84,7 @@ Browser → Windows:8080 → WslPortBridge → Tomcat(/flowdesk) → MySQL(cx_tr
 | 왜 모놀리식 WAR인가? | 소규모 실사용에 배포·백업·롤백이 단순. 모듈은 패키지(`web/service/mapper`)로 분리 |
 | 권한을 어떻게 막았나? | 프론트 메뉴 숨김 + 필터에서 path/API prefix 검사 + restricted는 계정 화이트리스트 |
 | 멀티테넌시? | 테이블에 소유 컬럼, 목록·CRUD·import/export 모두 owner 스코프 |
-| 트러블슈팅 | CSP로 막힌 YouTube iframe, WSL 포트 미노출, 그리드 stretch로 닫힌 카드가 늘어나던 UX |
+| 트러블슈팅 | WSL 포트 미노출, 업로드 상대경로로 첨부 깨짐, 그리드 stretch로 닫힌 카드가 늘어나던 UX |
 
 ---
 

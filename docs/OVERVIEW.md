@@ -107,7 +107,7 @@ auth_cd 02
 
 | 항목 | 구현 |
 |------|------|
-| 보안 헤더 | `SecurityHeadersFilter` (CSP: YouTube·Open-Meteo·korulive) |
+| 보안 헤더 | `SecurityHeadersFilter` (CSP: Open-Meteo·WebSocket·blob 등) |
 | XSS (서버) | `HtmlEscape.sanitizeText` |
 | XSS (클라이언트) | `cxEscapeHtml` |
 | 세션 쿠키 | `http-only`, `same-site: lax` |
