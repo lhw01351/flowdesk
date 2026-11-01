@@ -157,7 +157,7 @@ public class AuthDataBootstrap implements ApplicationRunner {
 
     ensureUser("admin", "cxadmin123", "관리자", FdAuthService.AUTH_ADMIN);
     ensureUser("hwlee", "hwlee1234", "이현욱", FdAuthService.AUTH_ADMIN);
-    ensureUser("guest", "guest1234", "손님", FdAuthService.AUTH_USER);
+    ensureUser("guest", "guest", "손님", FdAuthService.AUTH_USER);
     ensureUser("hani", "hani1234", "김하니", FdAuthService.AUTH_ADMIN);
 
     // 표시명·권한 보정
@@ -165,6 +165,9 @@ public class AuthDataBootstrap implements ApplicationRunner {
     patchUser("hwlee", "이현욱", FdAuthService.AUTH_ADMIN);
     patchUser("guest", "손님", FdAuthService.AUTH_USER);
     patchUser("hani", "김하니", FdAuthService.AUTH_ADMIN);
+
+    // 포폴용 게스트: guest / guest
+    ensurePassword("guest", "guest");
   }
 
   private void renameUser(String from, String to, String display, String authCd) {
@@ -215,5 +218,20 @@ public class AuthDataBootstrap implements ApplicationRunner {
     if (dirty) {
       appUserService.update(u.getId(), patch);
     }
+  }
+
+  /** 기존 계정의 데모 비밀번호를 목표 값으로 맞춤 (포폴 게스트 등) */
+  private void ensurePassword(String username, String password) {
+    AppUser u = appUserService.findByUsername(username);
+    if (u == null || password == null || password.isEmpty()) return;
+    if (password.equals(u.getPassword())) return;
+    AppUser patch = new AppUser();
+    patch.setUsername(u.getUsername());
+    patch.setPassword(password);
+    patch.setDisplayName(u.getDisplayName());
+    patch.setAuthCd(u.getAuthCd());
+    patch.setNote(u.getNote());
+    appUserService.update(u.getId(), patch);
+    log.info("계정 비밀번호 동기화: {}", username);
   }
 }

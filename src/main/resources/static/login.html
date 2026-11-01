@@ -25,6 +25,14 @@
   .login-footer { text-align: center; font-size: 11px; color: var(--text-ter); padding: 16px; }
   .fd-header-inner { max-width: 420px; margin: 0 auto; }
   .btn-full { width: 100%; margin-top: 8px; }
+  .btn-guest {
+    width: 100%; margin-top: 10px;
+    background: #fff; color: var(--text); border: 1px solid var(--border);
+  }
+  .btn-guest:hover { background: #f4f5f8; }
+  .guest-hint {
+    margin-top: 10px; font-size: 11px; color: var(--text-ter); text-align: center; line-height: 1.45;
+  }
 </style>
 </head>
 <body>
@@ -50,6 +58,8 @@
         <input type="password" id="password" autocomplete="current-password">
       </div>
       <button type="submit" class="fd-btn fd-btn-primary btn-full" id="btnLogin">로그인</button>
+      <button type="button" class="fd-btn btn-guest" id="btnGuestLogin">게스트로 둘러보기</button>
+      <div class="guest-hint">채용·포폴 열람용 · 계정 <b>guest</b> / <b>guest</b> (본인 데이터만 조회)</div>
       <div class="err" id="errBox"></div>
     </form>
   </div>
@@ -92,19 +102,23 @@
   var form = document.getElementById('loginForm');
   var errBox = document.getElementById('errBox');
   var btn = document.getElementById('btnLogin');
+  var btnGuest = document.getElementById('btnGuestLogin');
 
-  form.addEventListener('submit', function (e) {
-    e.preventDefault();
+  function setBusy(busy, label) {
+    btn.disabled = !!busy;
+    btnGuest.disabled = !!busy;
+    btn.textContent = busy ? (label || '접속 정보 확인 중…') : '로그인';
+    btnGuest.textContent = busy ? '접속 중…' : '게스트로 둘러보기';
+  }
+
+  function doLogin(username, password) {
     errBox.classList.remove('show');
-    var username = document.getElementById('username').value.trim();
-    var password = document.getElementById('password').value;
     if (!username || !password) {
       errBox.textContent = '아이디와 비밀번호를 입력해주세요.';
       errBox.classList.add('show');
       return;
     }
-    btn.disabled = true;
-    btn.textContent = '접속 정보 확인 중…';
+    setBusy(true);
     getGeo().then(function (geo) {
       return fetch(AUTH_BASE + '/login', {
         method: 'POST',
@@ -124,9 +138,22 @@
     }).catch(function (err) {
       errBox.textContent = err.message || '로그인 실패';
       errBox.classList.add('show');
-      btn.disabled = false;
-      btn.textContent = '로그인';
+      setBusy(false);
     });
+  }
+
+  form.addEventListener('submit', function (e) {
+    e.preventDefault();
+    doLogin(
+      document.getElementById('username').value.trim(),
+      document.getElementById('password').value
+    );
+  });
+
+  btnGuest.addEventListener('click', function () {
+    document.getElementById('username').value = 'guest';
+    document.getElementById('password').value = 'guest';
+    doLogin('guest', 'guest');
   });
 })();
 </script>

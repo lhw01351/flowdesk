@@ -64,7 +64,7 @@ cx:
         password: hwlee1234
         role: ADMIN
       - username: guest
-        password: guest1234
+        password: guest
         role: GUEST
       - username: hani
         password: hani1234
