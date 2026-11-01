@@ -1,37 +1,24 @@
-# CD: 집 PC의 self-hosted runner가 WSL 배포 스크립트를 실행
-# 러너 미등록 시 작업이 Queued 로 대기합니다 → docs/CI_CD.md 참고
-# 수동: Actions → CD Deploy → Run workflow
-name: CD Deploy
+# 의도적으로 비활성 (공개 저장소 + self-hosted runner 보안 위험)
+# 배포는 WSL에서: bash scripts/deploy-wsl.sh
+# 자세한 내용: docs/CI_CD.md
+#
+# Self-hosted CD가 필요하면:
+# 1) 저장소를 Private로 바꾸거나 배포 전용 private repo를 쓰고
+# 2) fork PR이 러너를 쓰지 않도록 워크플로를 제한한 뒤
+# 3) 이 파일을 복구해 사용하세요.
+name: CD Deploy (disabled)
 
 on:
   workflow_dispatch:
-    inputs:
-      branch:
-        description: "배포 브랜치"
-        required: true
-        default: develop
-  push:
-    branches: [main]
-    paths-ignore:
-      - "**.md"
-      - "docs/**"
 
 jobs:
-  deploy:
-    name: WSL Tomcat deploy
-    runs-on: self-hosted
+  notice:
+    name: Use local deploy-wsl.sh instead
+    runs-on: ubuntu-latest
     steps:
-      - name: Run deploy-wsl.sh on project clone
-        shell: bash
-        env:
-          DEPLOY_BRANCH: ${{ github.event.inputs.branch || 'main' }}
+      - name: Explain
         run: |
-          set -euo pipefail
-          # Windows runner → WSL / Linux(WSL) runner → 직접 실행
-          if command -v wsl.exe >/dev/null 2>&1; then
-            wsl.exe -e bash -lc "export FLOWDESK_BRANCH='$DEPLOY_BRANCH'; cd /mnt/d/ispark_prj/flowdesk && bash scripts/deploy-wsl.sh"
-          else
-            export FLOWDESK_BRANCH="$DEPLOY_BRANCH"
-            cd /mnt/d/ispark_prj/flowdesk
-            bash scripts/deploy-wsl.sh
-          fi
+          echo "Public repo: do NOT attach a self-hosted runner for CD."
+          echo "Deploy on your PC/WSL with: bash scripts/deploy-wsl.sh"
+          echo "See docs/CI_CD.md"
+          exit 1

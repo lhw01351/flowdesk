@@ -36,9 +36,8 @@ Spring Boot 기반의 개인·소규모 팀용 워크스페이스입니다.
 - **Frontend:** HTML/CSS/JS, Chart.js, 반응형 셸(모바일 드로어 내비)
 - **DB:** MySQL 8 (`cx_tracker`) / 로컬 H2
 - **Deploy:** Maven WAR → Apache Tomcat 9 (WSL2)
-- **CI/CD:** GitHub Actions CI + WSL `scripts/deploy-wsl.sh` (CD는 self-hosted runner 선택)
-
-자세한 배포·Actions 안내: [docs/CI_CD.md](docs/CI_CD.md)
+- **CI/CD:** GitHub-hosted Actions로 CI(빌드 검증) + WSL `deploy-wsl.sh`로 배포  
+  (공개 repo에는 self-hosted runner 연결하지 않음 — [docs/CI_CD.md](docs/CI_CD.md))
 
 ## 아키텍처 (요약)
 
