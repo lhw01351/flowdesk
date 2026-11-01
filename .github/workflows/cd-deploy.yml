@@ -1,0 +1,37 @@
+# CD: 집 PC의 self-hosted runner가 WSL 배포 스크립트를 실행
+# 러너 미등록 시 작업이 Queued 로 대기합니다 → docs/CI_CD.md 참고
+# 수동: Actions → CD Deploy → Run workflow
+name: CD Deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: "배포 브랜치"
+        required: true
+        default: develop
+  push:
+    branches: [main]
+    paths-ignore:
+      - "**.md"
+      - "docs/**"
+
+jobs:
+  deploy:
+    name: WSL Tomcat deploy
+    runs-on: self-hosted
+    steps:
+      - name: Run deploy-wsl.sh on project clone
+        shell: bash
+        env:
+          DEPLOY_BRANCH: ${{ github.event.inputs.branch || 'main' }}
+        run: |
+          set -euo pipefail
+          # Windows runner → WSL / Linux(WSL) runner → 직접 실행
+          if command -v wsl.exe >/dev/null 2>&1; then
+            wsl.exe -e bash -lc "export FLOWDESK_BRANCH='$DEPLOY_BRANCH'; cd /mnt/d/ispark_prj/flowdesk && bash scripts/deploy-wsl.sh"
+          else
+            export FLOWDESK_BRANCH="$DEPLOY_BRANCH"
+            cd /mnt/d/ispark_prj/flowdesk
+            bash scripts/deploy-wsl.sh
+          fi
