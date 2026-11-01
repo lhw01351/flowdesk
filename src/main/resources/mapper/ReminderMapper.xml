@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+  "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="kr.flowdesk.mapper.ReminderMapper">
+
+  <resultMap id="ReminderMap" type="kr.flowdesk.domain.Reminder">
+    <id property="id" column="id"/>
+    <result property="username" column="username"/>
+    <result property="remindDate" column="remind_date"/>
+    <result property="title" column="title"/>
+    <result property="content" column="content"/>
+    <result property="doneYn" column="done_yn"/>
+    <result property="createDt" column="create_dt"/>
+    <result property="modifyDt" column="modify_dt"/>
+  </resultMap>
+
+  <sql id="cols">
+    id, username, remind_date, title, content, done_yn, create_dt, modify_dt
+  </sql>
+
+  <select id="selectByUserAndRange" resultMap="ReminderMap">
+    SELECT <include refid="cols"/>
+    FROM reminders
+    WHERE username = #{username}
+      AND remind_date &gt;= #{from}
+      AND remind_date &lt;= #{to}
+    ORDER BY remind_date ASC, create_dt ASC, id ASC
+  </select>
+
+  <select id="selectById" resultMap="ReminderMap">
+    SELECT <include refid="cols"/>
+    FROM reminders
+    WHERE id = #{id}
+  </select>
+
+  <insert id="insert">
+    INSERT INTO reminders (id, username, remind_date, title, content, done_yn, create_dt, modify_dt)
+    VALUES (#{id}, #{username}, #{remindDate}, #{title}, #{content}, #{doneYn}, #{createDt}, #{modifyDt})
+  </insert>
+
+  <update id="update">
+    UPDATE reminders
+    SET remind_date = #{remindDate},
+        title = #{title},
+        content = #{content},
+        done_yn = #{doneYn},
+        modify_dt = #{modifyDt}
+    WHERE id = #{id} AND username = #{username}
+  </update>
+
+  <delete id="delete">
+    DELETE FROM reminders WHERE id = #{id} AND username = #{username}
+  </delete>
+</mapper>

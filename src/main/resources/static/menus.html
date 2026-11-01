@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>메뉴 관리 · FlowDesk</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/theme.css">
+<link rel="stylesheet" href="css/app-shell.css">
+<style>
+  #authCds { min-height: 72px; }
+  .row-actions { display: flex; gap: 6px; }
+  .row-actions button { font-size: 12px; padding: 4px 10px; }
+  .badge {
+    display: inline-block; padding: 2px 8px; border-radius: 6px; font-size: 11px; font-weight: 700;
+    background: #EEF0F6; color: #4A4D63; margin-right: 4px;
+  }
+  .badge.on { background: #E8F1FF; color: #1D5BBF; }
+  .edit-panel { display: none; margin-top: 16px; }
+  .edit-panel.show { display: block; }
+  .err {
+    display: none; margin-top: 10px; padding: 10px 12px; background: var(--danger-light);
+    color: var(--danger); border-radius: 8px; font-size: 12px; font-weight: 500;
+  }
+  .err.show { display: block; }
+  .ok-msg {
+    display: none; margin-top: 10px; padding: 10px 12px; background: #E9F8EF;
+    color: #1B7A45; border-radius: 8px; font-size: 12px; font-weight: 500;
+  }
+  .ok-msg.show { display: block; }
+  .form-actions { display: flex; gap: 8px; margin-top: 12px; }
+</style>
+</head>
+<body data-page="menus">
+<header class="fd-header">
+  <div class="fd-header-label">MENUS</div>
+  <div class="fd-header-title">메뉴 관리</div>
+  <div class="fd-header-sub" id="headerSub">메뉴 명칭 변경 · 권한별 노출 설정</div>
+</header>
+
+<div class="fd-content">
+  <div class="fd-card">
+    <div class="fd-card-title">메뉴 목록</div>
+    <div class="fd-card-desc">대메뉴 &gt; 중메뉴 &gt; 소메뉴 계층. restricted 메뉴는 권한 01(전체관리자)만 노출됩니다.</div>
+    <div style="overflow-x:auto">
+      <table class="fd-table">
+        <thead>
+          <tr>
+            <th>순서</th><th>레벨</th><th>상위</th><th>ID</th><th>메뉴명</th><th>리프</th><th>URL</th><th>권한</th><th>제한</th><th></th>
+          </tr>
+        </thead>
+        <tbody id="listBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="fd-card edit-panel" id="editPanel">
+    <div class="fd-card-title" id="editTitle">메뉴 수정</div>
+    <div class="fd-card-desc" id="editDesc">-</div>
+    <form id="menuForm">
+      <input type="hidden" id="menuId">
+      <div class="fd-field">
+        <label>메뉴 명칭 <span class="req">*</span></label>
+        <input type="text" id="menuNm" required>
+      </div>
+      <div class="fd-field">
+        <label>메뉴 레벨</label>
+        <select id="menuLevel">
+          <option value="1">1 — 대메뉴</option>
+          <option value="2">2 — 중메뉴</option>
+          <option value="3">3 — 소메뉴</option>
+        </select>
+      </div>
+      <div class="fd-field">
+        <label>상위 메뉴</label>
+        <select id="upMenuId"></select>
+        <div style="font-size:11px;color:var(--text-ter);margin-top:4px">대메뉴는 비움. 중/소는 상위 ID 지정</div>
+      </div>
+      <div class="fd-field">
+        <label>리프(화면) 여부</label>
+        <select id="isLeaf">
+          <option value="Y">Y — 화면(링크)</option>
+          <option value="N">N — 폴더(펼침)</option>
+        </select>
+      </div>
+      <div class="fd-field">
+        <label>정렬 순서</label>
+        <input type="number" id="sortOrder" min="0" step="1">
+      </div>
+      <div class="fd-field">
+        <label>아이콘 라벨</label>
+        <input type="text" id="icon" maxlength="8">
+      </div>
+      <div class="fd-field">
+        <label>허용 권한</label>
+        <select id="authCds" multiple></select>
+        <div style="font-size:11px;color:var(--text-ter);margin-top:4px">Ctrl(⌘)+클릭으로 복수 선택</div>
+      </div>
+      <div class="fd-field">
+        <label>사용 여부</label>
+        <select id="useYn">
+          <option value="Y">Y — 사용</option>
+          <option value="N">N — 숨김</option>
+        </select>
+      </div>
+      <div class="fd-field">
+        <label>관리자 제한 (restricted)</label>
+        <select id="restrictedYn">
+          <option value="N">N — 권한만으로 노출</option>
+          <option value="Y">Y — 01 전체관리자만</option>
+        </select>
+      </div>
+      <div class="fd-field">
+        <label>안내/메모</label>
+        <input type="text" id="guideComment">
+      </div>
+      <div class="form-actions">
+        <button type="submit" class="fd-btn fd-btn-primary">저장</button>
+        <button type="button" class="fd-btn" id="btnCancel">취소</button>
+      </div>
+      <div class="err" id="errBox"></div>
+      <div class="ok-msg" id="okBox"></div>
+    </form>
+  </div>
+</div>
+
+<script src="js/app-shell.js"></script>
+<script>
+(function () {
+  var menus = [], auths = [];
+
+  function showErr(msg) {
+    var e = document.getElementById('errBox'), o = document.getElementById('okBox');
+    o.classList.remove('show'); e.textContent = msg || ''; e.classList.toggle('show', !!msg);
+  }
+  function showOk(msg) {
+    var e = document.getElementById('errBox'), o = document.getElementById('okBox');
+    e.classList.remove('show'); o.textContent = msg || ''; o.classList.toggle('show', !!msg);
+  }
+
+  function fillAuthSelect(selected) {
+    selected = selected || [];
+    var sel = document.getElementById('authCds');
+    sel.innerHTML = auths.map(function (a) {
+      var on = selected.indexOf(a.authCd) >= 0 ? ' selected' : '';
+      return '<option value="' + cxEscapeHtml(a.authCd) + '"' + on + '>' +
+        cxEscapeHtml(a.authCd + ' · ' + a.authNm) + '</option>';
+    }).join('');
+  }
+
+  function levelLabel(lv) {
+    if (lv === 1) return '대';
+    if (lv === 2) return '중';
+    if (lv === 3) return '소';
+    return String(lv == null ? '-' : lv);
+  }
+
+  function fillUpSelect(currentId, selectedUp) {
+    var sel = document.getElementById('upMenuId');
+    var opts = '<option value="">(없음 · 대메뉴)</option>';
+    menus.forEach(function (m) {
+      if (m.menuId === currentId) return;
+      opts += '<option value="' + cxEscapeHtml(m.menuId) + '"' +
+        (m.menuId === selectedUp ? ' selected' : '') + '>' +
+        cxEscapeHtml(m.menuId + ' · ' + m.menuNm) + '</option>';
+    });
+    sel.innerHTML = opts;
+  }
+
+  function openEdit(m) {
+    document.getElementById('editPanel').classList.add('show');
+    document.getElementById('menuId').value = m.menuId;
+    document.getElementById('editTitle').textContent = '메뉴 수정 · ' + (m.menuKey || '');
+    document.getElementById('editDesc').textContent = (m.pageUrl || '폴더') + (m.apiPrefix ? ' · API ' + m.apiPrefix : '');
+    document.getElementById('menuNm').value = m.menuNm || '';
+    document.getElementById('menuLevel').value = String(m.menuLevel || 1);
+    document.getElementById('isLeaf').value = m.isLeaf || (m.pageUrl ? 'Y' : 'N');
+    fillUpSelect(m.menuId, m.upMenuId || '');
+    document.getElementById('sortOrder').value = m.sortOrder != null ? m.sortOrder : 0;
+    document.getElementById('icon').value = m.icon || '';
+    document.getElementById('useYn').value = m.useYn || 'Y';
+    document.getElementById('restrictedYn').value = m.restrictedYn || 'N';
+    document.getElementById('guideComment').value = m.guideComment || m.note || '';
+    fillAuthSelect(m.authCds || []);
+    showErr(''); showOk('');
+    document.getElementById('editPanel').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+
+  function closeEdit() {
+    document.getElementById('editPanel').classList.remove('show');
+  }
+
+  async function load() {
+    var [mr, ar] = await Promise.all([cxApiFetch(FD_MENUS_BASE), cxApiFetch(FD_AUTH_BASE)]);
+    menus = await mr.json();
+    auths = await ar.json();
+    document.getElementById('headerSub').textContent = menus.length + '개 메뉴 · 권한 ' + auths.length + '종';
+    var body = document.getElementById('listBody');
+    body.innerHTML = menus.map(function (m) {
+      var authHtml = (m.authCds || []).map(function (c) {
+        return '<span class="badge on">' + cxEscapeHtml(c) + '</span>';
+      }).join('') || '<span class="badge">폴더/없음</span>';
+      var pad = (m.menuLevel && m.menuLevel > 1) ? ('&nbsp;'.repeat((m.menuLevel - 1) * 4) + '└ ') : '';
+      return '<tr>' +
+        '<td class="fd-mono">' + cxEscapeHtml(String(m.realOrder != null ? m.realOrder : m.sortOrder || 0)) + '</td>' +
+        '<td><span class="badge on">' + levelLabel(m.menuLevel) + '</span></td>' +
+        '<td class="fd-mono">' + cxEscapeHtml(m.upMenuId || '-') + '</td>' +
+        '<td class="fd-mono">' + cxEscapeHtml(m.menuId) + '</td>' +
+        '<td>' + pad + '<strong>' + cxEscapeHtml(m.menuNm) + '</strong></td>' +
+        '<td>' + cxEscapeHtml(m.isLeaf || '-') + '</td>' +
+        '<td class="fd-mono">' + cxEscapeHtml(m.pageUrl || '-') + '</td>' +
+        '<td>' + authHtml + '</td>' +
+        '<td>' + cxEscapeHtml(m.restrictedYn || 'N') + '</td>' +
+        '<td><div class="row-actions"><button type="button" class="fd-btn" data-edit="' +
+          cxEscapeHtml(m.menuId) + '">수정</button></div></td></tr>';
+    }).join('');
+    body.querySelectorAll('[data-edit]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var id = btn.getAttribute('data-edit');
+        var found = menus.filter(function (x) { return x.menuId === id; })[0];
+        if (found) openEdit(found);
+      });
+    });
+  }
+
+  document.getElementById('btnCancel').addEventListener('click', closeEdit);
+  document.getElementById('menuForm').addEventListener('submit', async function (e) {
+    e.preventDefault();
+    showErr('');
+    var menuId = document.getElementById('menuId').value;
+    var authCds = [];
+    var authSel = document.getElementById('authCds');
+    Array.prototype.forEach.call(authSel.selectedOptions || [], function (opt) {
+      authCds.push(opt.value);
+    });
+    var payload = {
+      menuNm: document.getElementById('menuNm').value.trim(),
+      menuLevel: Number(document.getElementById('menuLevel').value || 1),
+      upMenuId: document.getElementById('upMenuId').value,
+      isLeaf: document.getElementById('isLeaf').value,
+      sortOrder: Number(document.getElementById('sortOrder').value || 0),
+      realOrder: Number(document.getElementById('sortOrder').value || 0),
+      icon: document.getElementById('icon').value.trim(),
+      useYn: document.getElementById('useYn').value,
+      restrictedYn: document.getElementById('restrictedYn').value,
+      guideComment: document.getElementById('guideComment').value.trim(),
+      authCds: authCds
+    };
+    if (!payload.menuNm) { showErr('메뉴 명칭을 입력해주세요.'); return; }
+    var res = await cxApiFetch(FD_MENUS_BASE + '/' + encodeURIComponent(menuId), {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    var body = {};
+    try { body = await res.json(); } catch (err) {}
+    if (!res.ok) { showErr(body.message || '저장에 실패했습니다.'); return; }
+    showOk('저장되었습니다. 재로그인 시 메뉴에 반영됩니다.');
+    await load();
+    var updated = menus.filter(function (x) { return x.menuId === menuId; })[0];
+    if (updated) openEdit(updated);
+  });
+
+  document.addEventListener('DOMContentLoaded', async function () {
+    try {
+      await cxRequireAuth();
+      await load();
+    } catch (e) { console.error(e); }
+  });
+})();
+</script>
+</body>
+</html>

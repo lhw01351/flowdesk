@@ -1,0 +1,121 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+  "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="kr.flowdesk.mapper.InbodyMapper">
+
+  <resultMap id="InbodyMap" type="kr.flowdesk.domain.InbodyRecord">
+    <id property="id" column="id"/>
+    <result property="measuredAt" column="measured_at"/>
+    <result property="heightCm" column="height_cm"/>
+    <result property="age" column="age"/>
+    <result property="gender" column="gender"/>
+    <result property="weightKg" column="weight_kg"/>
+    <result property="skeletalMuscleKg" column="skeletal_muscle_kg"/>
+    <result property="bodyFatMassKg" column="body_fat_mass_kg"/>
+    <result property="totalBodyWaterKg" column="total_body_water_kg"/>
+    <result property="proteinKg" column="protein_kg"/>
+    <result property="mineralKg" column="mineral_kg"/>
+    <result property="fatFreeMassKg" column="fat_free_mass_kg"/>
+    <result property="bmi" column="bmi"/>
+    <result property="percentBodyFat" column="percent_body_fat"/>
+    <result property="waistHipRatio" column="waist_hip_ratio"/>
+    <result property="bmrKcal" column="bmr_kcal"/>
+    <result property="visceralFatLevel" column="visceral_fat_level"/>
+    <result property="fitnessScore" column="fitness_score"/>
+    <result property="muscleControlKg" column="muscle_control_kg"/>
+    <result property="fatControlKg" column="fat_control_kg"/>
+    <result property="note" column="note"/>
+    <result property="createUser" column="create_user"/>
+    <result property="createDt" column="create_dt"/>
+    <result property="modifyDt" column="modify_dt"/>
+  </resultMap>
+
+  <sql id="cols">
+    id, measured_at, height_cm, age, gender, weight_kg, skeletal_muscle_kg, body_fat_mass_kg,
+    total_body_water_kg, protein_kg, mineral_kg, fat_free_mass_kg, bmi, percent_body_fat,
+    waist_hip_ratio, bmr_kcal, visceral_fat_level, fitness_score, muscle_control_kg,
+    fat_control_kg, note, create_user, create_dt, modify_dt
+  </sql>
+
+  <select id="selectByCreateUser" resultMap="InbodyMap">
+    SELECT <include refid="cols"/>
+    FROM inbody_records
+    WHERE create_user = #{createUser}
+    ORDER BY measured_at ASC, id ASC
+  </select>
+
+  <select id="selectById" resultMap="InbodyMap">
+    SELECT <include refid="cols"/>
+    FROM inbody_records
+    WHERE id = #{id}
+  </select>
+
+  <select id="selectLatestByCreateUser" resultMap="InbodyMap">
+    SELECT <include refid="cols"/>
+    FROM inbody_records
+    WHERE create_user = #{createUser}
+    ORDER BY measured_at DESC, id DESC
+    LIMIT 1
+  </select>
+
+  <select id="countAll" resultType="int">
+    SELECT COUNT(*) FROM inbody_records
+  </select>
+
+  <select id="countByCreateUser" resultType="int">
+    SELECT COUNT(*) FROM inbody_records WHERE create_user = #{createUser}
+  </select>
+
+  <insert id="insert">
+    INSERT INTO inbody_records (
+      id, measured_at, height_cm, age, gender, weight_kg, skeletal_muscle_kg, body_fat_mass_kg,
+      total_body_water_kg, protein_kg, mineral_kg, fat_free_mass_kg, bmi, percent_body_fat,
+      waist_hip_ratio, bmr_kcal, visceral_fat_level, fitness_score, muscle_control_kg,
+      fat_control_kg, note, create_user, create_dt, modify_dt
+    ) VALUES (
+      #{id}, #{measuredAt}, #{heightCm}, #{age}, #{gender}, #{weightKg}, #{skeletalMuscleKg},
+      #{bodyFatMassKg}, #{totalBodyWaterKg}, #{proteinKg}, #{mineralKg}, #{fatFreeMassKg},
+      #{bmi}, #{percentBodyFat}, #{waistHipRatio}, #{bmrKcal}, #{visceralFatLevel},
+      #{fitnessScore}, #{muscleControlKg}, #{fatControlKg}, #{note},
+      #{createUser}, #{createDt}, #{modifyDt}
+    )
+  </insert>
+
+  <update id="update">
+    UPDATE inbody_records SET
+      measured_at = #{measuredAt},
+      height_cm = #{heightCm},
+      age = #{age},
+      gender = #{gender},
+      weight_kg = #{weightKg},
+      skeletal_muscle_kg = #{skeletalMuscleKg},
+      body_fat_mass_kg = #{bodyFatMassKg},
+      total_body_water_kg = #{totalBodyWaterKg},
+      protein_kg = #{proteinKg},
+      mineral_kg = #{mineralKg},
+      fat_free_mass_kg = #{fatFreeMassKg},
+      bmi = #{bmi},
+      percent_body_fat = #{percentBodyFat},
+      waist_hip_ratio = #{waistHipRatio},
+      bmr_kcal = #{bmrKcal},
+      visceral_fat_level = #{visceralFatLevel},
+      fitness_score = #{fitnessScore},
+      muscle_control_kg = #{muscleControlKg},
+      fat_control_kg = #{fatControlKg},
+      note = #{note},
+      modify_dt = #{modifyDt}
+    WHERE id = #{id}
+  </update>
+
+  <delete id="deleteById">
+    DELETE FROM inbody_records WHERE id = #{id}
+  </delete>
+
+  <update id="backfillCreateUser">
+    UPDATE inbody_records
+    SET create_user = #{createUser},
+        create_dt = COALESCE(create_dt, measured_at),
+        modify_dt = COALESCE(modify_dt, measured_at)
+    WHERE create_user IS NULL OR create_user = ''
+  </update>
+</mapper>

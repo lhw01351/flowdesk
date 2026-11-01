@@ -1,0 +1,14 @@
+# cp application-local.yml.example application-local.yml
+# application-local.yml 은 gitignore — 로컬 전용 오버라이드
+#
+# 실행 예:
+#   mvn -DskipTests spring-boot:run -Dspring-boot.run.profiles=local
+# 또는
+#   SPRING_PROFILES_ACTIVE=local
+
+flowdesk:
+  seed:
+    admin-password: ${FLOWDESK_PASS_ADMIN:}
+    hwlee-password: ${FLOWDESK_PASS_HWLEE:}
+    hani-password: ${FLOWDESK_PASS_HANI:}
+    guest-password: ${FLOWDESK_PASS_GUEST:guest}

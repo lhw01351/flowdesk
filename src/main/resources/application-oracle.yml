@@ -1,0 +1,22 @@
+# 사용: --spring.profiles.active=oracle
+# WSL → Windows Oracle 예:
+#   CX_ORACLE_URL=jdbc:oracle:thin:@//<Windows호스트IP>:1521/XEPDB1
+spring:
+  datasource:
+    url: ${CX_ORACLE_URL:jdbc:oracle:thin:@//127.0.0.1:1521/XEPDB1}
+    driver-class-name: oracle.jdbc.OracleDriver
+    username: ${CX_ORACLE_USER:cx}
+    # 기본값 없음 — CX_ORACLE_PASSWORD 환경변수 필수
+    password: ${CX_ORACLE_PASSWORD}
+  sql:
+    init:
+      # Oracle은 schema.sql(H2/MySQL용) 자동실행 끄고, docs/schema-oracle.sql 수동 실행
+      mode: never
+  h2:
+    console:
+      enabled: false
+
+mybatis:
+  configuration:
+    # Oracle 예약어/대소문자 이슈 줄이기
+    map-underscore-to-camel-case: true

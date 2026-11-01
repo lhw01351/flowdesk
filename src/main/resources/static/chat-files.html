@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>채팅 첨부 · FlowDesk</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/theme.css">
+<link rel="stylesheet" href="css/app-shell.css">
+<style>
+  .stat-pills { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:14px; }
+  .stat-pill {
+    background: var(--surface-alt); border: 1px solid var(--border-light);
+    border-radius: 999px; padding: 6px 12px; font-size: 12px; font-weight: 650; color: var(--text-sec);
+  }
+  .stat-pill strong { color: var(--text); margin-left: 4px; }
+  .thumb {
+    width: 48px; height: 48px; object-fit: cover; border-radius: 8px;
+    border: 1px solid var(--border-light); background: #fff;
+  }
+  .file-ico {
+    width: 48px; height: 48px; border-radius: 8px; background: var(--surface-alt);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px; font-weight: 800; color: var(--text-ter);
+  }
+  .name-cell { font-weight: 700; font-size: 13px; }
+  .sub { font-size: 11px; color: var(--text-ter); margin-top: 2px; }
+  .cf-desktop { display: block; }
+  .cf-mobile { display: none; }
+  @media (max-width: 900px) {
+    .cf-desktop { display: none; }
+    .cf-mobile { display: block; }
+  }
+</style>
+</head>
+<body data-page="chatfiles">
+<header class="fd-header">
+  <div class="fd-header-label">CHAT FILES</div>
+  <div class="fd-header-title">채팅 첨부</div>
+  <div class="fd-header-sub" id="headerSub">홈 채팅에 업로드된 첨부파일 현황</div>
+</header>
+
+<div class="fd-content">
+  <div class="stat-pills" id="statPills"></div>
+  <div class="fd-card">
+    <div class="fd-card-title">업로드 목록</div>
+    <div class="fd-card-desc" id="listDesc">파일명 · 업로더 · 용량</div>
+    <div class="fd-table-wrap cf-desktop">
+      <table class="fd-table">
+        <thead>
+          <tr>
+            <th>미리보기</th>
+            <th>파일명</th>
+            <th>업로더</th>
+            <th>용량</th>
+            <th>업로드 시각</th>
+            <th>메시지</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="listBody"></tbody>
+      </table>
+    </div>
+    <div class="cf-mobile fd-mobile-list" id="listCards"></div>
+    <div id="listPager"></div>
+  </div>
+</div>
+
+<script src="js/app-shell.js"></script>
+<script>
+(function () {
+  var PAGE_SIZE = 20;
+  var allRows = [];
+  var listPage = 1;
+
+  function formatBytes(n) {
+    n = Number(n) || 0;
+    if (n < 1024) return n + ' B';
+    if (n < 1048576) return (n / 1024).toFixed(1) + ' KB';
+    return (n / 1048576).toFixed(1) + ' MB';
+  }
+
+  function isImage(a) {
+    var ct = String(a.contentType || '').toLowerCase();
+    var n = String(a.originalName || '').toLowerCase();
+    return ct.indexOf('image/') === 0 || /\.(png|jpe?g|gif|webp|bmp)$/i.test(n);
+  }
+
+  function fileUrl(a) {
+    return (CX_APP_BASE || '') + (a.url || ('/api/chat/files/' + a.id));
+  }
+
+  function previewHtml(a) {
+    var url = fileUrl(a);
+    if (isImage(a)) {
+      return '<a href="' + url + '" target="_blank" rel="noopener"><img class="thumb" src="' + url + '" alt=""></a>';
+    }
+    var ext = String(a.originalName || '').split('.').pop() || 'FILE';
+    return '<div class="file-ico">' + cxEscapeHtml(ext.slice(0, 4).toUpperCase()) + '</div>';
+  }
+
+  async function load() {
+    var res = await cxApiFetch(CX_CHAT_BASE + '/admin/attachments');
+    if (!res.ok) throw new Error('load fail');
+    var data = await res.json();
+    var stats = data.stats || {};
+    allRows = data.list || [];
+    document.getElementById('statPills').innerHTML =
+      '<span class="stat-pill">파일<strong>' + (stats.count || allRows.length) + '</strong></span>' +
+      '<span class="stat-pill">총 용량<strong>' + formatBytes(stats.totalBytes || 0) + '</strong></span>';
+    document.getElementById('headerSub').textContent =
+      '업로드 ' + allRows.length + '건 · 총 ' + formatBytes(stats.totalBytes || 0);
+    document.getElementById('listDesc').textContent = allRows.length + '건';
+    renderTable();
+  }
+
+  function renderTable() {
+    var body = document.getElementById('listBody');
+    var cards = document.getElementById('listCards');
+    if (!allRows.length) {
+      body.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#9B9DB0;padding:32px">업로드된 첨부가 없습니다.</td></tr>';
+      cards.innerHTML = '<div class="fd-empty">업로드된 첨부가 없습니다.</div>';
+      fdRenderPager('listPager', 1, 1, null, { total: 0 });
+      return;
+    }
+    var slice = fdPageSlice(allRows, listPage, PAGE_SIZE);
+    listPage = slice.page;
+    body.innerHTML = slice.items.map(function (a) {
+      return '<tr>' +
+        '<td>' + previewHtml(a) + '</td>' +
+        '<td><div class="name-cell">' + cxEscapeHtml(a.originalName || '-') + '</div>' +
+          '<div class="sub">' + cxEscapeHtml(a.contentType || '') + '</div></td>' +
+        '<td>' + cxEscapeHtml(a.uploadedBy || '-') + '</td>' +
+        '<td class="fd-mono">' + formatBytes(a.sizeBytes) + '</td>' +
+        '<td class="fd-mono">' + cxEscapeHtml(a.uploadedAt || '-') + '</td>' +
+        '<td class="fd-mono">' + cxClipHtml(a.messageId || '-', 10) + '</td>' +
+        '<td><button type="button" class="fd-btn fd-btn-danger fd-btn-sm btn-del" data-id="' +
+          cxEscapeHtml(a.id) + '">삭제</button></td></tr>';
+    }).join('');
+    cards.innerHTML = slice.items.map(function (a) {
+      return '<div class="fd-mobile-card">' +
+        '<div class="row1"><div class="when">' + cxEscapeHtml(a.uploadedAt || '-') + '</div></div>' +
+        '<div class="meta">' +
+          '<span class="k">파일</span><span class="v"><strong>' + cxEscapeHtml(a.originalName || '-') + '</strong></span>' +
+          '<span class="k">업로더</span><span class="v">' + cxEscapeHtml(a.uploadedBy || '-') + '</span>' +
+          '<span class="k">용량</span><span class="v">' + formatBytes(a.sizeBytes) + '</span>' +
+          '<span class="k">미리보기</span><span class="v">' + previewHtml(a) + '</span>' +
+        '</div>' +
+        '<div style="margin-top:10px">' +
+          '<button type="button" class="fd-btn fd-btn-danger fd-btn-sm btn-del" data-id="' +
+            cxEscapeHtml(a.id) + '">삭제</button></div></div>';
+    }).join('');
+    document.querySelectorAll('.btn-del').forEach(function (btn) {
+      btn.addEventListener('click', function () { deleteOne(btn.getAttribute('data-id')); });
+    });
+    fdRenderPager('listPager', slice.page, slice.pages, function (p) {
+      listPage = p;
+      renderTable();
+    }, { total: slice.total, size: PAGE_SIZE });
+  }
+
+  async function deleteOne(id) {
+    if (!id) return;
+    var ok = await cxConfirm({
+      title: '첨부 삭제',
+      message: '정말로 삭제하시겠습니까?\n선택한 첨부파일이 서버에서 삭제됩니다.',
+      okText: '확인',
+      cancelText: '취소',
+      danger: true
+    });
+    if (!ok) return;
+    try {
+      var res = await cxApiFetch(CX_CHAT_BASE + '/admin/attachments/' + encodeURIComponent(id), {
+        method: 'DELETE'
+      });
+      if (!res.ok) throw new Error('fail');
+      cxToast('첨부 삭제 완료');
+      await load();
+    } catch (e) {
+      console.error(e);
+      cxToast('삭제 실패');
+    }
+  }
+
+  document.addEventListener('DOMContentLoaded', async function () {
+    try {
+      await cxRequireAuth();
+      await load();
+    } catch (e) {
+      console.error(e);
+      cxToast('목록을 불러오지 못했습니다');
+    }
+  });
+})();
+</script>
+</body>
+</html>

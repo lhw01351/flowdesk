@@ -1,0 +1,21 @@
+# 사용: SPRING_PROFILES_ACTIVE=mysql
+# Ubuntu Tomcat: scripts/tomcat-setenv-mysql.sh → ~/tomcat/bin/setenv.sh
+spring:
+  datasource:
+    url: ${CX_DB_URL:jdbc:mysql://127.0.0.1:3306/cx_tracker?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Seoul&allowPublicKeyRetrieval=true&useSSL=false}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    username: ${CX_DB_USER:cx}
+    # 기본값 없음 — setenv.sh / 환경변수 CX_DB_PASSWORD 필수
+    password: ${CX_DB_PASSWORD}
+  sql:
+    init:
+      # 테이블은 setup 스크립트에서 이미 생성. 재기동 시 충돌 줄이려고 never
+      # 최초만 자동생성 원하면 always + schema.sql
+      mode: never
+  h2:
+    console:
+      enabled: false
+
+mybatis:
+  configuration:
+    map-underscore-to-camel-case: true

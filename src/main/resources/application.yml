@@ -1,0 +1,63 @@
+server:
+  port: 8080
+  address: 0.0.0.0
+  servlet:
+    encoding:
+      charset: UTF-8
+      force: true
+    session:
+      timeout: 2h
+      cookie:
+        http-only: true
+        same-site: lax
+
+spring:
+  application:
+    name: flowdesk
+  servlet:
+    multipart:
+      max-file-size: 5MB
+      max-request-size: 6MB
+  datasource:
+    url: jdbc:h2:file:./data/flowdesk;MODE=MySQL;DATABASE_TO_LOWER=TRUE;AUTO_SERVER=TRUE
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+  sql:
+    init:
+      mode: always
+      schema-locations: classpath:schema.sql
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+
+mybatis:
+  mapper-locations: classpath:mapper/*.xml
+  configuration:
+    map-underscore-to-camel-case: true
+
+logging:
+  level:
+    kr.flowdesk: INFO
+
+flowdesk:
+  # 업로드는 절대경로 권장. 상대경로(./data/...)는 Tomcat 기동 cwd에 따라
+  # DB 메타만 남고 파일이 404(깨진 미리보기)가 될 수 있음.
+  # FLOWDESK_DATA_DIR 미설정 시 ~/flowdesk-data 사용.
+  chat:
+    upload-dir: ${FLOWDESK_DATA_DIR:${user.home}/flowdesk-data}/chat-uploads
+    max-file-bytes: 5242880
+  profile:
+    upload-dir: ${FLOWDESK_DATA_DIR:${user.home}/flowdesk-data}/profile-images
+    max-file-bytes: 2097152
+  # 시드 계정 비번 — 값은 저장소에 두지 말고 환경변수로만
+  # guest 만 포폴 공개 데모용 기본값 허용
+  seed:
+    admin-password: ${FLOWDESK_PASS_ADMIN:}
+    hwlee-password: ${FLOWDESK_PASS_HWLEE:}
+    hani-password: ${FLOWDESK_PASS_HANI:}
+    guest-password: ${FLOWDESK_PASS_GUEST:guest}
+
+# 로그인 계정은 MySQL app_users 만 사용 (YAML 계정 없음)
+# 최초 시드는 flowdesk.seed + FLOWDESK_PASS_* → AuthDataBootstrap

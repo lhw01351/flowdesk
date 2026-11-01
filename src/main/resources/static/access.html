@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>로그인 로그 · FlowDesk</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/theme.css">
+<link rel="stylesheet" href="css/app-shell.css">
+<style>
+  .gps { font-size:12px; color:var(--text-sec); }
+  .gps a { color:var(--primary); text-decoration:none; font-weight:600; }
+  .ua { font-size:11px; color:var(--text-ter); max-width:140px; }
+  .ua .fd-clip { max-width: 11ch; }
+  .access-mobile .meta .v .fd-clip { font-size: 11px; color: var(--text-ter); }
+  .fd-badge.login { background:#E8F1FF; color:#1D5BBF; }
+  .fd-badge.logout { background:#F3F4F8; color:#5C5E78; }
+  .fd-badge.login-as { background:#F5F0E8; color:#8A6A2F; }
+  .fd-badge.page { background:#EEF0F6; color:#4A4D63; }
+  .filter-row { display:flex; flex-wrap:wrap; gap:10px; align-items:center; }
+  .filter-row select {
+    min-width: 140px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px 10px;
+    font-size: 13px;
+    font-family: inherit;
+    background: #fff;
+  }
+  .stat-pills { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:14px; }
+  .stat-pill {
+    background: var(--surface-alt);
+    border: 1px solid var(--border-light);
+    border-radius: 999px;
+    padding: 6px 12px;
+    font-size: 12px;
+    font-weight: 650;
+    color: var(--text-sec);
+  }
+  .stat-pill strong { color: var(--text); margin-left: 4px; }
+  .access-desktop { display: block; }
+  .access-mobile { display: none; }
+  .action-row {
+    display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
+    margin: 0 0 12px; justify-content: space-between;
+  }
+  .action-row .left, .action-row .right { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .action-row .sel-count { font-size: 12px; color: var(--text-ter); font-weight: 600; }
+  .chk-cell { width: 36px; text-align: center; vertical-align: middle; }
+  .chk-cell input[type="checkbox"] {
+    width: 16px; height: 16px; accent-color: var(--primary); cursor: pointer;
+  }
+  .fd-mobile-card .card-chk {
+    display: flex; align-items: flex-start; gap: 10px;
+  }
+  .fd-mobile-card .card-chk > input {
+    margin-top: 2px; width: 16px; height: 16px; accent-color: var(--primary); flex-shrink: 0;
+  }
+  .fd-mobile-card .card-chk > .card-body { flex: 1; min-width: 0; }
+  @media (max-width: 900px) {
+    .access-desktop { display: none; }
+    .access-mobile { display: block; }
+    .filter-row select {
+      flex: 1 1 100%;
+      min-width: 0;
+      width: 100%;
+      font-size: 16px;
+    }
+    .stat-pill { font-size: 11px; padding: 5px 10px; }
+    .fd-toolbar#periodBar .fd-period-btn { flex: 1 1 auto; }
+    .action-row .right { width: 100%; }
+    .action-row .right .fd-btn { flex: 1 1 auto; }
+  }
+</style>
+</head>
+<body data-page="access">
+<header class="fd-header">
+  <div class="fd-header-label">LOGIN LOG</div>
+  <div class="fd-header-title">로그인 로그</div>
+  <div class="fd-header-sub" id="headerSub">로그인·로그아웃·페이지 접속 기록을 조회합니다</div>
+</header>
+
+<div class="fd-content">
+  <div class="fd-toolbar" id="periodBar"></div>
+  <div class="fd-toolbar filter-row" id="filterBar"></div>
+  <div class="stat-pills" id="statPills"></div>
+  <div class="fd-card">
+    <div class="fd-card-title">접속 기록</div>
+    <div class="fd-card-desc" id="listDesc">사용자 · 메뉴 · 시각 · 기기</div>
+    <div class="action-row" id="actionRow">
+      <div class="left">
+        <span class="sel-count" id="selCount">선택 0건</span>
+      </div>
+      <div class="right">
+        <button type="button" class="fd-btn fd-btn-danger fd-btn-sm" id="btnDeleteSelected" disabled>선택 삭제</button>
+        <button type="button" class="fd-btn fd-btn-ghost fd-btn-sm" id="btnDeleteAll">전체 삭제</button>
+      </div>
+    </div>
+    <div class="fd-table-wrap access-desktop">
+      <table class="fd-table">
+        <thead>
+          <tr>
+            <th class="chk-cell"><input type="checkbox" id="chkAll" title="현재 페이지 전체 선택" aria-label="현재 페이지 전체 선택"></th>
+            <th>접속시각</th>
+            <th>유형</th>
+            <th>사용자</th>
+            <th>메뉴</th>
+            <th>페이지</th>
+            <th>기기</th>
+            <th>IP</th>
+            <th>GPS</th>
+            <th>User-Agent</th>
+          </tr>
+        </thead>
+        <tbody id="listBody"></tbody>
+      </table>
+    </div>
+    <div class="access-mobile fd-mobile-list" id="listCards"></div>
+    <div id="listPager"></div>
+  </div>
+</div>
+
+<script src="js/app-shell.js"></script>
+<script>
+(function () {
+  var RANGE_KEY = 'fd-access-range';
+  var PAGE_SIZE = 20;
+  var mode = '15', from = '', to = '';
+  var filterUser = '', filterEvent = '';
+  var userOptions = [];
+  var allRows = [];
+  var listPage = 1;
+  var selected = {};
+
+  var EVENT_LABEL = {
+    LOGIN: '로그인',
+    LOGOUT: '로그아웃',
+    LOGIN_AS: '대리 로그인',
+    PAGE: '페이지'
+  };
+
+  function default15() { var r = cxLastNDays(15); from = r.from; to = r.to; mode = '15'; }
+  function loadSaved() {
+    try {
+      var o = JSON.parse(localStorage.getItem(RANGE_KEY) || 'null');
+      if (!o) { default15(); return; }
+      if (o.mode === 'custom' && o.from && o.to) { mode = 'custom'; from = o.from; to = o.to; }
+      else if (o.mode === '30') { mode = '30'; var a = cxLastNDays(30); from = a.from; to = a.to; }
+      else if (o.mode === 'all') { mode = 'all'; from = ''; to = ''; }
+      else default15();
+      filterUser = o.user || '';
+      filterEvent = o.eventType || '';
+    } catch (e) { default15(); }
+  }
+  function save() {
+    localStorage.setItem(RANGE_KEY, JSON.stringify({
+      mode: mode, from: from, to: to, user: filterUser, eventType: filterEvent
+    }));
+  }
+  function periodBtn(m, label) {
+    return '<button type="button" class="fd-period-btn' + (mode === m ? ' active' : '') + '" data-mode="' + m + '">' + label + '</button>';
+  }
+  function renderBar() {
+    var html = '<span class="fd-control-label">기간</span>' +
+      periodBtn('15', '최근 15일') + periodBtn('30', '최근 30일') +
+      periodBtn('all', '전체') + periodBtn('custom', '직접 입력');
+    if (mode === 'custom') {
+      html += '<div class="fd-custom-range"><input type="date" id="fromDate" value="' + from + '"><span>~</span><input type="date" id="toDate" value="' + to + '"><button type="button" class="fd-period-btn" id="btnApply">적용</button></div>';
+    }
+    document.getElementById('periodBar').innerHTML = html;
+    document.querySelectorAll('#periodBar [data-mode]').forEach(function (el) {
+      el.addEventListener('click', function () {
+        mode = el.getAttribute('data-mode');
+        if (mode === '15') { var a = cxLastNDays(15); from = a.from; to = a.to; }
+        else if (mode === '30') { var b = cxLastNDays(30); from = b.from; to = b.to; }
+        else if (mode === 'all') { from = ''; to = ''; }
+        else if (mode === 'custom' && (!from || !to)) { var c = cxLastNDays(15); from = c.from; to = c.to; }
+        listPage = 1; save(); renderBar(); load();
+      });
+    });
+    var apply = document.getElementById('btnApply');
+    if (apply) apply.addEventListener('click', function () {
+      from = document.getElementById('fromDate').value;
+      to = document.getElementById('toDate').value;
+      if (!from || !to) return;
+      mode = 'custom'; listPage = 1; save(); load();
+    });
+  }
+
+  function renderFilters() {
+    var userOpts = '<option value="">전체 사용자</option>' + userOptions.map(function (u) {
+      var label = (u.displayName ? u.displayName + ' (' + u.username + ')' : u.username);
+      return '<option value="' + cxEscapeHtml(u.username) + '"' +
+        (u.username === filterUser ? ' selected' : '') + '>' + cxEscapeHtml(label) + '</option>';
+    }).join('');
+    var evOpts = [
+      ['', '전체 유형'],
+      ['LOGIN', '로그인'],
+      ['LOGOUT', '로그아웃'],
+      ['LOGIN_AS', '대리 로그인'],
+      ['PAGE', '페이지']
+    ].map(function (p) {
+      return '<option value="' + p[0] + '"' + (filterEvent === p[0] ? ' selected' : '') + '>' + p[1] + '</option>';
+    }).join('');
+    document.getElementById('filterBar').innerHTML =
+      '<span class="fd-control-label">필터</span>' +
+      '<select id="fltUser">' + userOpts + '</select>' +
+      '<select id="fltEvent">' + evOpts + '</select>';
+    document.getElementById('fltUser').addEventListener('change', function () {
+      filterUser = this.value; listPage = 1; save(); load();
+    });
+    document.getElementById('fltEvent').addEventListener('change', function () {
+      filterEvent = this.value; listPage = 1; save(); load();
+    });
+  }
+
+  function badgeClass(type) {
+    if (type === 'LOGIN') return ' login';
+    if (type === 'LOGOUT') return ' logout';
+    if (type === 'LOGIN_AS') return ' login-as';
+    return ' page';
+  }
+
+  function renderStats(list) {
+    var counts = { LOGIN: 0, LOGOUT: 0, LOGIN_AS: 0, PAGE: 0 };
+    var users = {};
+    list.forEach(function (r) {
+      var t = r.eventType || 'PAGE';
+      if (counts[t] == null) counts[t] = 0;
+      counts[t]++;
+      if (r.username) users[r.username] = true;
+    });
+    document.getElementById('statPills').innerHTML =
+      '<span class="stat-pill">전체<strong>' + list.length + '</strong></span>' +
+      '<span class="stat-pill">로그인<strong>' + (counts.LOGIN || 0) + '</strong></span>' +
+      '<span class="stat-pill">로그아웃<strong>' + (counts.LOGOUT || 0) + '</strong></span>' +
+      '<span class="stat-pill">대리 로그인<strong>' + (counts.LOGIN_AS || 0) + '</strong></span>' +
+      '<span class="stat-pill">페이지<strong>' + (counts.PAGE || 0) + '</strong></span>' +
+      '<span class="stat-pill">사용자<strong>' + Object.keys(users).length + '</strong></span>';
+  }
+
+  async function loadUsers() {
+    try {
+      var res = await cxApiFetch(FD_USERS_BASE);
+      if (res.ok) userOptions = await res.json();
+      else userOptions = [];
+    } catch (e) { userOptions = []; }
+  }
+
+  async function load() {
+    var url = CX_ACCESS_BASE + '?';
+    var q = [];
+    if (mode !== 'all' && from && to) {
+      q.push('from=' + encodeURIComponent(from));
+      q.push('to=' + encodeURIComponent(to));
+    }
+    if (filterUser) q.push('user=' + encodeURIComponent(filterUser));
+    if (filterEvent) q.push('eventType=' + encodeURIComponent(filterEvent));
+    url += q.join('&');
+    var res = await cxApiFetch(url);
+    var list = await res.json();
+    if (!Array.isArray(list)) list = [];
+    allRows = list;
+    pruneSelection();
+    document.getElementById('headerSub').textContent =
+      (mode === 'all' ? '전체' : (from + ' ~ ' + to)) + ' · ' + list.length + '건';
+    document.getElementById('listDesc').textContent = list.length + '건 · 사용자/메뉴/시각/기기';
+    renderStats(list);
+    renderTable();
+  }
+
+  function rowGpsHtml(r) {
+    if (r.latitude != null && r.longitude != null) {
+      var map = 'https://maps.google.com/?q=' + encodeURIComponent(r.latitude + ',' + r.longitude);
+      return '<div class="gps"><a href="' + map + '" target="_blank" rel="noopener">' +
+        Number(r.latitude).toFixed(5) + ', ' + Number(r.longitude).toFixed(5) + '</a>' +
+        (r.gpsAccuracyM != null ? '<br>정확도 ±' + Math.round(r.gpsAccuracyM) + 'm' : '') + '</div>';
+    }
+    return '<span class="gps">' + cxEscapeHtml(r.gpsStatus || '없음') + '</span>';
+  }
+
+  function selectedIds() {
+    return Object.keys(selected).filter(function (k) { return selected[k]; });
+  }
+
+  function updateSelUi() {
+    var ids = selectedIds();
+    var n = ids.length;
+    document.getElementById('selCount').textContent = '선택 ' + n + '건';
+    document.getElementById('btnDeleteSelected').disabled = n === 0;
+    var chkAll = document.getElementById('chkAll');
+    if (chkAll) {
+      var slice = fdPageSlice(allRows, listPage, PAGE_SIZE);
+      var pageIds = slice.items.map(function (r) { return r.id; }).filter(Boolean);
+      var allOn = pageIds.length > 0 && pageIds.every(function (id) { return !!selected[id]; });
+      var someOn = pageIds.some(function (id) { return !!selected[id]; });
+      chkAll.checked = allOn;
+      chkAll.indeterminate = !allOn && someOn;
+    }
+  }
+
+  function setSelected(id, on) {
+    if (!id) return;
+    if (on) selected[id] = true;
+    else delete selected[id];
+    updateSelUi();
+  }
+
+  function pruneSelection() {
+    var alive = {};
+    allRows.forEach(function (r) { if (r && r.id) alive[r.id] = true; });
+    Object.keys(selected).forEach(function (id) {
+      if (!alive[id]) delete selected[id];
+    });
+  }
+
+  function renderTable() {
+    var body = document.getElementById('listBody');
+    var cards = document.getElementById('listCards');
+    if (!allRows.length) {
+      body.innerHTML = '<tr><td colspan="10" style="text-align:center;color:#9B9DB0;padding:32px">해당 조건의 기록이 없습니다.</td></tr>';
+      cards.innerHTML = '<div class="fd-empty">해당 조건의 기록이 없습니다.</div>';
+      fdRenderPager('listPager', 1, 1, null, { total: 0 });
+      updateSelUi();
+      return;
+    }
+    var slice = fdPageSlice(allRows, listPage, PAGE_SIZE);
+    listPage = slice.page;
+    body.innerHTML = slice.items.map(function (r) {
+      var type = r.eventType || 'PAGE';
+      var typeLabel = EVENT_LABEL[type] || type;
+      var note = '';
+      if (type === 'LOGIN_AS' && r.gpsStatus && String(r.gpsStatus).indexOf('by:') === 0) {
+        note = '<div style="font-size:10px;color:var(--text-ter);margin-top:2px">' +
+          cxEscapeHtml(r.gpsStatus) + '</div>';
+      }
+      var id = r.id || '';
+      var checked = selected[id] ? ' checked' : '';
+      return '<tr data-id="' + cxEscapeHtml(id) + '">' +
+        '<td class="chk-cell"><input type="checkbox" class="row-chk" data-id="' +
+          cxEscapeHtml(id) + '"' + checked + ' aria-label="로그 선택"></td>' +
+        '<td class="fd-mono">' + cxEscapeHtml(r.accessedAt || '-') + '</td>' +
+        '<td><span class="fd-badge' + badgeClass(type) + '">' + cxEscapeHtml(typeLabel) + '</span>' + note + '</td>' +
+        '<td><strong>' + cxEscapeHtml(r.username || '-') + '</strong></td>' +
+        '<td>' + cxEscapeHtml(r.menuNm || '-') + '</td>' +
+        '<td class="fd-mono">' + cxClipHtml(r.pagePath || '-', 10) + '</td>' +
+        '<td>' + cxEscapeHtml(r.deviceType || '-') + '</td>' +
+        '<td class="fd-mono">' + cxEscapeHtml(r.ipAddress || '-') + '</td>' +
+        '<td>' + rowGpsHtml(r) + '</td>' +
+        '<td class="ua">' + cxClipHtml(r.userAgent || '-', 10) + '</td></tr>';
+    }).join('');
+    cards.innerHTML = slice.items.map(function (r) {
+      var type = r.eventType || 'PAGE';
+      var typeLabel = EVENT_LABEL[type] || type;
+      var by = (type === 'LOGIN_AS' && r.gpsStatus && String(r.gpsStatus).indexOf('by:') === 0)
+        ? cxEscapeHtml(r.gpsStatus) : '';
+      var id = r.id || '';
+      var checked = selected[id] ? ' checked' : '';
+      return '<div class="fd-mobile-card" data-id="' + cxEscapeHtml(id) + '">' +
+        '<div class="card-chk">' +
+          '<input type="checkbox" class="row-chk" data-id="' + cxEscapeHtml(id) + '"' +
+            checked + ' aria-label="로그 선택">' +
+          '<div class="card-body">' +
+            '<div class="row1">' +
+              '<div class="when">' + cxEscapeHtml(r.accessedAt || '-') + '</div>' +
+              '<span class="fd-badge' + badgeClass(type) + '">' + cxEscapeHtml(typeLabel) + '</span>' +
+            '</div>' +
+            '<div class="meta">' +
+              '<span class="k">사용자</span><span class="v"><strong>' + cxEscapeHtml(r.username || '-') + '</strong>' +
+                (by ? ' <span style="color:var(--text-ter)">(' + by + ')</span>' : '') + '</span>' +
+              '<span class="k">메뉴</span><span class="v">' + cxEscapeHtml(r.menuNm || '-') + '</span>' +
+              '<span class="k">페이지</span><span class="v">' + cxClipHtml(r.pagePath || '-', 10) + '</span>' +
+              '<span class="k">기기</span><span class="v">' + cxEscapeHtml(r.deviceType || '-') +
+                (r.ipAddress ? ' · ' + cxEscapeHtml(r.ipAddress) : '') + '</span>' +
+              '<span class="k">GPS</span><span class="v">' + rowGpsHtml(r) + '</span>' +
+              '<span class="k">UA</span><span class="v">' + cxClipHtml(r.userAgent || '-', 10) + '</span>' +
+            '</div>' +
+          '</div>' +
+        '</div></div>';
+    }).join('');
+    body.querySelectorAll('.row-chk').forEach(bindRowChk);
+    cards.querySelectorAll('.row-chk').forEach(bindRowChk);
+    fdRenderPager('listPager', slice.page, slice.pages, function (p) {
+      listPage = p;
+      renderTable();
+      (document.querySelector('.access-mobile') || body).scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, { total: slice.total, size: PAGE_SIZE });
+    updateSelUi();
+  }
+
+  function bindRowChk(el) {
+    el.addEventListener('change', function () {
+      setSelected(el.getAttribute('data-id'), el.checked);
+      // 데스크톱/모바일 동일 id 체크박스 동기화
+      document.querySelectorAll('.row-chk[data-id="' + el.getAttribute('data-id') + '"]').forEach(function (x) {
+        if (x !== el) x.checked = el.checked;
+      });
+    });
+  }
+
+  async function deleteSelected() {
+    var ids = selectedIds();
+    if (!ids.length) {
+      cxToast('선택된 로그가 없습니다');
+      return;
+    }
+    var ok = await cxConfirm({
+      title: '로그 삭제',
+      message: '정말로 삭제하시겠습니까?\n선택한 ' + ids.length + '건이 삭제됩니다.',
+      okText: '확인',
+      cancelText: '취소',
+      danger: true
+    });
+    if (!ok) return;
+    try {
+      var res = await cxApiFetch(CX_ACCESS_BASE + '/delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: ids })
+      });
+      if (!res.ok) throw new Error('delete fail');
+      var body = await res.json();
+      selected = {};
+      cxToast((body.deleted != null ? body.deleted : ids.length) + '건 삭제 완료');
+      listPage = 1;
+      await load();
+    } catch (e) {
+      console.error(e);
+      cxToast('삭제 실패');
+    }
+  }
+
+  async function deleteAll() {
+    var total = allRows.length;
+    var ok = await cxConfirm({
+      title: '전체 삭제',
+      message: '정말로 삭제하시겠습니까?\n저장된 로그인 로그가 모두 삭제됩니다.',
+      okText: '확인',
+      cancelText: '취소',
+      danger: true
+    });
+    if (!ok) return;
+    try {
+      var res = await cxApiFetch(CX_ACCESS_BASE + '/delete-all', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: '{}'
+      });
+      if (!res.ok) throw new Error('delete-all fail');
+      var body = await res.json();
+      selected = {};
+      cxToast((body.deleted != null ? body.deleted : total) + '건 전체 삭제 완료');
+      listPage = 1;
+      await load();
+    } catch (e) {
+      console.error(e);
+      cxToast('전체 삭제 실패');
+    }
+  }
+
+  document.addEventListener('DOMContentLoaded', async function () {
+    try {
+      await cxRequireAuth();
+      loadSaved();
+      await loadUsers();
+      renderBar();
+      renderFilters();
+      document.getElementById('chkAll').addEventListener('change', function () {
+        var on = this.checked;
+        var slice = fdPageSlice(allRows, listPage, PAGE_SIZE);
+        slice.items.forEach(function (r) {
+          if (r && r.id) {
+            if (on) selected[r.id] = true;
+            else delete selected[r.id];
+          }
+        });
+        renderTable();
+      });
+      document.getElementById('btnDeleteSelected').addEventListener('click', deleteSelected);
+      document.getElementById('btnDeleteAll').addEventListener('click', deleteAll);
+      await load();
+    } catch (e) { console.error(e); }
+  });
+})();
+</script>
+</body>
+</html>

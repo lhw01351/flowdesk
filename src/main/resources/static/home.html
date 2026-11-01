@@ -1,0 +1,2298 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>홈 · FlowDesk</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/theme.css">
+<link rel="stylesheet" href="css/app-shell.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/stompjs@2.3.3/lib/stomp.min.js"></script>
+<style>
+  .home-layout {
+    display: grid;
+    grid-template-columns: 1.2fr 1fr;
+    gap: 18px;
+    align-items: stretch;
+    max-width: 100%;
+  }
+  .home-layout > * { min-width: 0; max-width: 100%; }
+  .score-row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+  @media (max-width: 720px) {
+    .score-row { grid-template-columns: repeat(2, 1fr); gap: 8px; }
+    .score-card { padding: 12px 10px; }
+    .score-card .val { font-size: 20px; }
+  }
+  .score-card {
+    background: var(--surface);
+    border: 1px solid var(--border-light);
+    border-radius: 12px;
+    padding: 16px 14px;
+    box-shadow: var(--shadow-sm);
+  }
+  .score-card .lbl { font-size: 12px; color: var(--text-ter); font-weight: 700; margin-bottom: 6px; }
+  .score-card .val { font-size: 26px; font-weight: 800; letter-spacing: -0.4px; }
+  .score-card .val span { font-size: 13px; font-weight: 600; color: var(--text-sec); margin-left: 2px; }
+  .score-card.bmi .val { color: var(--primary); }
+  .cal-head {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 12px; gap: 8px;
+  }
+  .cal-head strong { font-size: 16px; font-weight: 800; }
+  .cal-nav {
+    border: 1px solid var(--border); background: #fff; border-radius: 8px;
+    padding: 6px 10px; cursor: pointer; font-family: inherit; font-weight: 700; font-size: 13px;
+  }
+  .cal-grid {
+    display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px;
+  }
+  .cal-dow {
+    text-align: center; font-size: 11px; font-weight: 700; color: var(--text-ter); padding: 6px 0;
+  }
+  .cal-day {
+    aspect-ratio: 1; border: 1px solid transparent; border-radius: 10px;
+    background: transparent; font-family: inherit; font-size: 13px; font-weight: 600;
+    color: var(--text-sec); cursor: default; position: relative;
+  }
+  .cal-day.other { opacity: 0.28; }
+  .cal-day.has {
+    background: var(--primary-light); color: var(--primary-dark);
+    border-color: rgba(92,95,206,0.25); cursor: pointer; font-weight: 800;
+  }
+  .cal-day.has:hover { background: #dfe2fb; }
+  .cal-day.selected {
+    background: var(--primary); color: #fff; border-color: var(--primary);
+  }
+  .cal-day .dot {
+    position: absolute; bottom: 5px; left: 50%; transform: translateX(-50%);
+    width: 5px; height: 5px; border-radius: 50%; background: var(--primary);
+  }
+  .cal-day.selected .dot { background: #fff; }
+  .cal-legend { font-size: 12px; color: var(--text-ter); margin-top: 10px; }
+  .charts-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    height: 100%;
+    min-height: 0;
+    min-width: 0;
+    max-width: 100%;
+  }
+  .charts-stack > .fd-card {
+    flex: 1 1 0;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    min-width: 0;
+    max-width: 100%;
+    overflow: hidden;
+  }
+  .charts-stack .fd-chart-wrap {
+    position: relative;
+    flex: 1 1 auto;
+    width: 100%;
+    max-width: 100%;
+    height: 260px;
+    min-height: 220px;
+    overflow: hidden;
+  }
+  .charts-stack .fd-chart-wrap canvas {
+    display: block;
+    width: 100% !important;
+    max-width: 100% !important;
+    height: 100% !important;
+  }
+  .home-layout > .fd-card {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
+  @media (max-width: 980px) {
+    .home-layout {
+      grid-template-columns: 1fr;
+      align-items: start;
+    }
+    .charts-stack {
+      height: auto;
+      display: block;
+    }
+    .charts-stack > .fd-card {
+      display: block;
+      flex: none;
+      height: auto;
+      margin-bottom: 14px;
+    }
+    .charts-stack > .fd-card:last-child { margin-bottom: 0; }
+    .charts-stack .fd-chart-wrap {
+      flex: none;
+      height: 200px;
+      min-height: 180px;
+      max-height: 220px;
+    }
+    .home-layout > .fd-card { height: auto; }
+  }
+  @media (max-width: 560px) {
+    .charts-stack .fd-chart-wrap {
+      height: 180px;
+      min-height: 160px;
+      max-height: 200px;
+    }
+  }
+  .meta-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+  .home-panels {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+    align-items: start;
+  }
+  .home-panels.eq-remind-weather #panelRemind,
+  .home-panels.eq-remind-weather #panelWeather {
+    height: var(--eq-panel-h, auto);
+  }
+  #panelChannelA { display: none !important; }
+  @media (max-width: 900px) {
+    .home-panels { grid-template-columns: 1fr; }
+    .yt-wrap {
+      height: min(300px, 42vh);
+    }
+    .home-panel-toggle { padding: 12px 14px; }
+    .home-panel-toggle .ttl { font-size: 14px; }
+  }
+  .home-panel {
+    background: var(--surface);
+    border: 1px solid var(--border-light);
+    border-radius: 12px;
+    box-shadow: var(--shadow-sm);
+    overflow: hidden;
+    min-width: 0;
+  }
+  .home-panel.open {
+    display: flex;
+    flex-direction: column;
+  }
+  .home-panels.eq-remind-weather #panelRemind.open,
+  .home-panels.eq-remind-weather #panelWeather.open {
+    height: var(--eq-panel-h, auto);
+  }
+  .home-panel-toggle {
+    width: 100%; display: flex; align-items: center; justify-content: space-between;
+    gap: 12px; padding: 14px 16px; border: none; background: transparent;
+    cursor: pointer; font-family: inherit; text-align: left;
+  }
+  .home-panel-toggle:hover { background: var(--surface-alt); }
+  .home-panel-toggle .ttl {
+    display: flex; align-items: center; gap: 10px;
+    font-size: 15px; font-weight: 800; color: var(--text);
+  }
+  .home-panel-toggle .badge {
+    font-size: 11px; font-weight: 800; letter-spacing: .03em;
+    padding: 3px 8px; border-radius: 999px; background: #e11d48; color: #fff;
+  }
+  .home-panel-toggle .chev {
+    font-size: 14px; font-weight: 800; color: var(--text-ter);
+    transition: transform .18s ease;
+  }
+  .home-panel.open .home-panel-toggle .chev { transform: rotate(180deg); }
+  .home-panel-body {
+    display: none;
+    padding: 0;
+    border-top: 1px solid var(--border-light);
+  }
+  .home-panel.open .home-panel-body {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+    min-height: 0;
+  }
+  .yt-wrap {
+    position: relative;
+    width: 100%;
+    height: 460px;
+    background: #0f1118;
+    border-radius: 0;
+    overflow: hidden;
+  }
+  .yt-wrap iframe {
+    position: absolute; inset: 0;
+    width: 100%; height: 100%;
+    border: 0;
+  }
+  #panelChannelA .home-panel-body {
+    padding: 0;
+    position: relative;
+  }
+  .home-panel-toggle .badge.slot {
+    background: #94a3b8;
+  }
+  #panelSlot .home-panel-body {
+    padding: 16px 14px;
+  }
+  #panelSlot .slot-placeholder {
+    min-height: 160px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    color: var(--text-ter);
+    font-size: 13px;
+    font-weight: 650;
+    background: var(--surface-alt);
+    border: 1px dashed var(--border);
+    border-radius: 10px;
+    padding: 20px;
+  }
+  #panelRemind .home-panel-body,
+  #panelWeather .home-panel-body {
+    padding: 12px 14px 12px;
+  }
+  #panelWeather .wx-main { padding-top: 4px; }
+  #panelWeather .panel-note { margin-top: 8px; }
+  #userBar.hidden { display: none !important; }
+  .yt-fallback {
+    position: absolute; inset: 0; z-index: 2;
+    display: none; flex-direction: column; align-items: center; justify-content: center;
+    gap: 12px; padding: 24px; text-align: center; color: #fff;
+    background: linear-gradient(180deg, rgba(10,12,20,.55), rgba(10,12,20,.88)),
+      center/cover no-repeat;
+  }
+  .yt-fallback.show { display: flex; }
+  .yt-fallback h3 { margin: 0; font-size: 20px; font-weight: 800; }
+  .yt-fallback p { margin: 0; font-size: 13px; color: rgba(255,255,255,.8); max-width: 420px; line-height: 1.5; }
+  .yt-actions { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin-top: 6px; }
+  .yt-btn {
+    border: none; border-radius: 10px; padding: 12px 18px; cursor: pointer;
+    font-family: inherit; font-size: 14px; font-weight: 800; text-decoration: none; color: #fff;
+  }
+  .yt-btn-primary { background: #ff0033; }
+  .yt-btn-ghost { background: rgba(255,255,255,.14); }
+  .panel-note {
+    margin: 10px 0 0; font-size: 12px; color: var(--text-ter); text-align: center;
+  }
+  .mini-cal-head {
+    display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 10px;
+  }
+  .mini-cal-head strong { font-size: 14px; font-weight: 800; }
+  .mini-cal-nav {
+    border: 1px solid var(--border); background: #fff; border-radius: 8px;
+    padding: 4px 8px; cursor: pointer; font-family: inherit; font-weight: 700; font-size: 12px;
+  }
+  .mini-cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; }
+  .mini-cal-dow { text-align: center; font-size: 10px; font-weight: 700; color: var(--text-ter); padding: 4px 0; }
+  .mini-cal-day {
+    aspect-ratio: auto; height: 28px; border: 1px solid transparent; border-radius: 8px;
+    background: transparent; font-family: inherit; font-size: 11px; font-weight: 600;
+    color: var(--text-sec); cursor: default; position: relative;
+  }
+  .mini-cal-day.other { opacity: .28; }
+  .mini-cal-day.cur { cursor: pointer; }
+  .mini-cal-day.cur:hover { background: #eef0fb; }
+  .mini-cal-day.has {
+    background: var(--primary-light); color: var(--primary-dark);
+    border-color: rgba(92,95,206,.25); font-weight: 800;
+  }
+  .mini-cal-day.today {
+    box-shadow: inset 0 0 0 2px var(--primary);
+    font-weight: 800;
+  }
+  .mini-cal-day.selected { background: var(--primary); color: #fff; box-shadow: none; }
+  .mini-cal-day .dot {
+    position: absolute; bottom: 3px; left: 50%; transform: translateX(-50%);
+    width: 4px; height: 4px; border-radius: 50%; background: var(--primary);
+  }
+  .mini-cal-day.selected .dot { background: #fff; }
+  .rem-today-label {
+    font-size: 11px; color: var(--text-ter); margin: 0 0 2px; font-weight: 600;
+  }
+  .rem-day-list { margin-top: 4px; max-height: 40px; overflow-y: auto; }
+  #panelRemind .home-panel-body { padding-top: 8px; padding-bottom: 8px; }
+  #panelRemind .mini-cal-head { margin-bottom: 4px; flex: 0 0 auto; }
+  #panelRemind .rem-today-label { flex: 0 0 auto; }
+  #panelRemind .rem-cal-block {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+  }
+  #panelRemind .mini-cal-grid { gap: 2px; }
+  #panelRemind #remCalDows { flex: 0 0 auto; }
+  #panelRemind #remCalDays {
+    flex: 1 1 auto;
+    grid-auto-rows: 1fr;
+    min-height: 140px;
+  }
+  #panelRemind .mini-cal-day {
+    aspect-ratio: auto !important;
+    height: 100%;
+    min-height: 28px;
+    font-size: 11px;
+    border-radius: 6px;
+    line-height: 1;
+  }
+  #panelRemind .mini-cal-dow { padding: 0 0 2px; font-size: 9px; }
+  #panelRemind .fd-link-btn { margin-top: auto !important; padding: 6px 10px; font-size: 11px; flex: 0 0 auto; align-self: flex-start; }
+  #panelRemind .mini-cal-day .dot { bottom: 2px; width: 3px; height: 3px; }
+  #panelRemind .rem-day-list { flex: 0 0 auto; }
+  #panelRemind .rem-day-list:empty { display: none; }
+  #panelWeather.open .home-panel-body { justify-content: flex-start; }
+  .home-panel-toggle .badge.chat { background: #10b981; }
+  /* 채팅: 하단(첨부·입력)은 고정, 메시지 로그만 스크롤 — overflow로 잘리지 않게 */
+  #panelChat.open {
+    min-height: 0;
+  }
+  #panelChat.open .home-panel-body {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 14px 14px 16px;
+    box-sizing: border-box;
+    min-height: 380px;
+    max-height: min(680px, 78vh);
+    overflow: hidden;
+  }
+  .chat-status {
+    flex: 0 0 auto;
+    font-size: 12px; color: var(--text-ter); font-weight: 650;
+    display: flex; align-items: center; gap: 8px;
+    padding: 0 2px;
+  }
+  .chat-status .dot {
+    width: 8px; height: 8px; border-radius: 50%; background: #c4c6d4; flex-shrink: 0;
+  }
+  .chat-status.on .dot { background: #22c55e; }
+  .chat-status.err .dot { background: #ef4444; }
+  .chat-status #chatStatusText { flex: 1 1 auto; min-width: 0; }
+  .chat-status #chatRefreshBtn { flex: 0 0 auto; margin-left: auto; }
+  .chat-log {
+    flex: 1 1 auto;
+    min-height: 0; /* flex 자식이 줄어들며 스크롤되도록 */
+    overflow-x: hidden;
+    overflow-y: auto;
+    border: 1px solid var(--border-light);
+    border-radius: 12px;
+    background: var(--surface-alt);
+    padding: 14px 16px;
+    box-sizing: border-box;
+    -webkit-overflow-scrolling: touch;
+  }
+  .chat-msg {
+    margin: 0 4px 12px;
+    max-width: min(78%, 520px);
+  }
+  .chat-msg:last-child { margin-bottom: 4px; }
+  .chat-msg.me {
+    margin-left: auto;
+    margin-right: 4px;
+    text-align: right;
+  }
+  .chat-msg .meta {
+    font-size: 11px; color: var(--text-ter); margin-bottom: 4px;
+    padding: 0 2px;
+  }
+  .chat-msg .bubble {
+    display: inline-block; text-align: left;
+    background: #fff; border: 1px solid var(--border-light);
+    border-radius: 12px; padding: 10px 12px; font-size: 13px;
+    line-height: 1.5; white-space: pre-wrap; word-break: break-word;
+    box-shadow: 0 1px 2px rgba(30, 32, 48, 0.04);
+  }
+  .chat-msg.me .bubble {
+    background: var(--primary-light); border-color: transparent;
+  }
+  .chat-msg .atts {
+    margin-top: 8px; display: flex; flex-wrap: wrap; gap: 8px;
+  }
+  .chat-msg.me .atts { justify-content: flex-end; }
+  .chat-msg .atts a, .chat-msg .atts .att-img-wrap {
+    display: inline-block; max-width: 100%;
+  }
+  .chat-msg .atts img {
+    max-width: min(240px, 70vw); max-height: 180px;
+    border-radius: 8px; border: 1px solid var(--border-light); display: block;
+  }
+  .chat-msg .atts .file-link {
+    font-size: 12px; font-weight: 650; color: var(--primary);
+    text-decoration: none; background: #fff; border: 1px solid var(--border);
+    border-radius: 8px; padding: 6px 10px;
+  }
+  .chat-pending {
+    display: none; flex-wrap: wrap; gap: 10px;
+    padding: 0 2px;
+    flex: 0 0 auto;
+    max-height: 130px;
+    overflow-x: hidden;
+    overflow-y: auto;
+  }
+  .chat-pending.show { display: flex; }
+  .chat-pending .chip {
+    position: relative;
+    display: inline-flex; flex-direction: column; align-items: stretch;
+    background: #fff; border: 1px solid var(--border); border-radius: 12px;
+    padding: 6px; font-size: 11px; font-weight: 650; max-width: 140px;
+  }
+  .chat-pending .chip img {
+    width: 120px; height: 90px; object-fit: cover; border-radius: 8px;
+    display: block; background: var(--surface-alt);
+  }
+  .chat-pending .chip .chip-name {
+    margin-top: 4px; padding: 0 4px; overflow: hidden; text-overflow: ellipsis;
+    white-space: nowrap; color: var(--text-sec); max-width: 120px;
+  }
+  .chat-pending .chip button {
+    position: absolute; top: 4px; right: 4px;
+    border: none; background: rgba(30,32,48,0.72); color: #fff;
+    width: 22px; height: 22px; border-radius: 50%;
+    cursor: pointer; font-size: 14px; line-height: 1; padding: 0;
+  }
+  .chat-msg .msg-actions {
+    margin-top: 8px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .chat-msg.me .msg-actions { justify-content: flex-end; }
+  .chat-msg .btn-edit-msg,
+  .chat-msg .btn-del-msg {
+    font-size: 12px;
+    font-weight: 800;
+    cursor: pointer;
+    padding: 6px 12px;
+    border-radius: 8px;
+    font-family: inherit;
+    letter-spacing: -0.2px;
+  }
+  .chat-msg .btn-edit-msg {
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text-sec);
+  }
+  .chat-msg .btn-edit-msg:hover {
+    background: var(--primary-light);
+    color: var(--primary-dark);
+    border-color: var(--primary);
+  }
+  .chat-msg .btn-del-msg {
+    border: 1px solid var(--danger);
+    background: var(--danger-light);
+    color: var(--danger);
+  }
+  .chat-msg .btn-del-msg:hover {
+    background: var(--danger);
+    color: #fff;
+  }
+  .chat-msg .chat-edit-box {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 4px;
+  }
+  .chat-msg .chat-edit-box textarea {
+    width: 100%;
+    min-height: 72px;
+    resize: vertical;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 10px 12px;
+    font: inherit;
+    font-size: 13px;
+    box-sizing: border-box;
+  }
+  .chat-msg .chat-edit-actions {
+    display: flex;
+    gap: 6px;
+    justify-content: flex-end;
+  }
+  .chat-msg .atts .att-img-wrap,
+  .chat-msg .bubble .chat-img-link {
+    display: inline-block; margin: 4px 0; cursor: zoom-in;
+    border: none; background: transparent; padding: 0; font: inherit;
+  }
+  .chat-msg .atts .att-img-wrap img,
+  .chat-msg .bubble .chat-img-link img {
+    max-width: min(240px, 70vw); max-height: 180px;
+    border-radius: 8px; border: 1px solid var(--border-light); display: block;
+  }
+  .chat-msg .bubble .chat-text-part { white-space: pre-wrap; }
+  .chat-img-viewer {
+    display: none; position: fixed; inset: 0; z-index: 130;
+    align-items: center; justify-content: center;
+    padding: 20px; box-sizing: border-box;
+    background: rgba(20, 22, 36, 0.72);
+  }
+  .chat-img-viewer.show { display: flex; }
+  .chat-img-viewer-card {
+    width: min(920px, 100%);
+    max-height: calc(100vh - 40px);
+    background: #fff; border-radius: 16px;
+    box-shadow: 0 20px 50px rgba(0,0,0,0.28);
+    overflow: hidden; display: flex; flex-direction: column;
+  }
+  .chat-img-viewer-head {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 10px; padding: 12px 14px; border-bottom: 1px solid var(--border-light);
+  }
+  .chat-img-viewer-head strong { font-size: 14px; font-weight: 800; }
+  .chat-img-viewer-actions { display: flex; gap: 8px; align-items: center; }
+  .chat-img-viewer-body {
+    padding: 14px; overflow: auto; text-align: center;
+    background: var(--surface-alt);
+  }
+  .chat-img-viewer-body img {
+    max-width: 100%; max-height: min(72vh, 780px);
+    border-radius: 10px; box-shadow: 0 4px 16px rgba(0,0,0,0.12);
+  }
+  .chat-compose {
+    display: flex; flex-direction: column; gap: 10px;
+    padding-top: 2px;
+    flex: 0 0 auto;
+  }
+  .chat-compose textarea {
+    width: 100%; min-height: 64px; max-height: 120px; resize: vertical;
+    border: 1px solid var(--border); border-radius: 10px;
+    padding: 12px 14px; font: inherit; font-size: 13px;
+    box-sizing: border-box; line-height: 1.45;
+  }
+  .chat-compose-actions {
+    display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
+    padding: 0 2px 2px;
+  }
+  .chat-compose-actions .hint {
+    font-size: 11px; color: var(--text-ter); margin-right: auto;
+  }
+  @media (max-width: 900px) {
+    #panelChat.open .home-panel-body {
+      min-height: 320px;
+      max-height: min(70vh, 640px);
+      padding: 12px 12px 14px;
+      gap: 8px;
+    }
+    .chat-log { padding: 12px; min-height: 0; }
+    .chat-pending { max-height: 110px; }
+    .chat-compose textarea { max-height: 100px; }
+    .chat-msg { max-width: 88%; margin-left: 2px; margin-right: 2px; }
+    .chat-msg.me { margin-right: 2px; }
+  }
+  .rem-day-item {
+    font-size: 11px; padding: 4px 6px; border-radius: 6px;
+    background: var(--surface-alt); margin-bottom: 3px;
+  }
+  .rem-day-item .t { font-weight: 800; }
+  .rem-day-item.done { opacity: .6; text-decoration: line-through; }
+  .wx-toolbar { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+  @media (max-width: 560px) {
+    .wx-toolbar input { flex: 1 1 100%; width: 100%; min-width: 0; }
+    .wx-toolbar .fd-btn { flex: 1 1 auto; }
+  }
+  .wx-toolbar input {
+    flex: 1 1 140px; min-width: 0; border: 1px solid var(--border); border-radius: 8px;
+    padding: 8px 10px; font-family: inherit; font-size: 13px;
+  }
+  .wx-main { text-align: center; padding: 8px 4px 4px; }
+  .wx-now {
+    display: flex; align-items: center; justify-content: center; gap: 14px;
+    margin-bottom: 4px;
+  }
+  .wx-icon {
+    font-size: 52px; line-height: 1; filter: saturate(1.05);
+    user-select: none;
+  }
+  .wx-temp { font-size: 42px; font-weight: 800; letter-spacing: -1px; line-height: 1.1; }
+  .wx-temp span { font-size: 18px; font-weight: 700; color: var(--text-sec); }
+  .wx-desc { margin-top: 6px; font-size: 14px; font-weight: 700; color: var(--text-sec); }
+  .wx-place { margin-top: 4px; font-size: 12px; color: var(--text-ter); }
+  .wx-meta {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 14px;
+  }
+  .wx-meta div {
+    background: var(--surface-alt); border-radius: 10px; padding: 10px;
+    font-size: 12px; color: var(--text-sec);
+  }
+  .wx-meta strong { display: block; font-size: 16px; font-weight: 800; color: var(--text); margin-top: 2px; }
+  .wx-daily { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; margin-top: 12px; }
+  .wx-day {
+    background: var(--surface-alt); border-radius: 8px; padding: 8px 4px; text-align: center; font-size: 11px;
+  }
+  .wx-day .ico { font-size: 20px; line-height: 1.2; margin: 2px 0 4px; }
+  .wx-day .d { font-weight: 700; color: var(--text-ter); margin-bottom: 2px; }
+  .wx-day .r { font-weight: 800; }
+  .wx-hits {
+    display: none; margin: 0 0 10px; border: 1px solid var(--border-light);
+    border-radius: 10px; overflow: hidden; background: #fff; max-height: 220px; overflow-y: auto;
+  }
+  .wx-hits.show { display: block; }
+  .wx-hit {
+    display: block; width: 100%; text-align: left; border: none; border-bottom: 1px solid var(--border-light);
+    background: #fff; padding: 10px 12px; cursor: pointer; font-family: inherit;
+  }
+  .wx-hit:last-child { border-bottom: none; }
+  .wx-hit:hover { background: var(--primary-light); }
+  .wx-hit .n { font-size: 13px; font-weight: 700; color: var(--text); }
+  .wx-hit .s { font-size: 11px; color: var(--text-ter); margin-top: 2px; }
+  .badge.remind { background: #6366f1; }
+  .badge.weather { background: #0ea5e9; }
+  .fd-modal-backdrop {
+    display: none; position: fixed; inset: 0; background: rgba(30,32,48,0.45);
+    z-index: 80; align-items: center; justify-content: center; padding: 20px;
+  }
+  .fd-modal-backdrop.show { display: flex; }
+  .fd-modal {
+    width: 100%; max-width: 440px; background: #fff; border-radius: 16px;
+    box-shadow: 0 18px 48px rgba(0,0,0,0.18); overflow: hidden;
+  }
+  .fd-modal-head {
+    padding: 18px 20px 12px; border-bottom: 1px solid var(--border-light);
+    display: flex; align-items: flex-start; justify-content: space-between; gap: 12px;
+  }
+  .fd-modal-head h3 { margin: 0; font-size: 17px; font-weight: 800; }
+  .fd-modal-head p { margin: 4px 0 0; font-size: 12px; color: var(--text-ter); }
+  .fd-modal-close {
+    border: none; background: var(--surface-alt); width: 32px; height: 32px;
+    border-radius: 8px; cursor: pointer; font-size: 18px; line-height: 1; color: var(--text-sec);
+  }
+  .fd-modal-body { padding: 16px 20px 20px; }
+  .popup-scores {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px;
+  }
+  .popup-score {
+    background: var(--surface-alt); border-radius: 10px; padding: 12px;
+  }
+  .popup-score .lbl { font-size: 11px; color: var(--text-ter); font-weight: 700; }
+  .popup-score .val { font-size: 22px; font-weight: 800; margin-top: 4px; }
+  .popup-score.bmi .val { color: var(--primary); }
+</style>
+</head>
+<body data-page="home">
+<header class="fd-header">
+  <div class="fd-header-label">HOME</div>
+  <div class="fd-header-title">홈</div>
+  <div class="fd-header-sub" id="headerSub">날씨 · 리마인드 · 실시간 채팅</div>
+</header>
+
+<div class="fd-content">
+  <div class="fd-toolbar hidden" id="userBar" style="margin-bottom:8px"></div>
+
+  <div class="fd-tabs">
+    <button type="button" class="fd-tab-btn active" data-tab="news">홈</button>
+    <button type="button" class="fd-tab-btn" data-tab="inbody">인바디</button>
+  </div>
+
+  <div class="fd-tab-pane active" id="tab-news">
+    <div class="home-panels">
+      <!-- 숨김: 채널A (DOM 유지, 화면 비표시) -->
+      <div class="home-panel" id="panelChannelA" data-panel="channelA" hidden>
+        <button type="button" class="home-panel-toggle" data-toggle="channelA" aria-expanded="false">
+          <span class="ttl"><span class="badge">LIVE</span>채널A NEWS</span>
+          <span class="chev">▼</span>
+        </button>
+        <div class="home-panel-body">
+          <div class="yt-wrap" id="ytWrap">
+            <iframe id="ytPlayer" title="채널A NEWS 라이브" src="" allowfullscreen></iframe>
+            <div class="yt-fallback" id="ytFallback"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 1행: 날씨 | 리마인드 -->
+      <div class="home-panel" id="panelWeather" data-panel="weather">
+        <button type="button" class="home-panel-toggle" data-toggle="weather" aria-expanded="false">
+          <span class="ttl"><span class="badge weather">WX</span>날씨</span>
+          <span class="chev">▼</span>
+        </button>
+        <div class="home-panel-body">
+          <div class="wx-toolbar">
+            <input type="search" id="wxQuery" placeholder="예: 서울 금천구 가산동" value="서울특별시 금천구 가산동" autocomplete="off">
+            <button type="button" class="fd-btn fd-btn-ghost" id="wxSearchBtn">검색</button>
+            <button type="button" class="fd-btn fd-btn-ghost" id="wxRefreshBtn" title="현재 위치 날씨 새로고침">새로고침</button>
+            <button type="button" class="fd-btn fd-btn-primary" id="wxGpsBtn">내 위치</button>
+          </div>
+          <div class="wx-hits" id="wxHits" role="listbox" aria-label="검색 결과"></div>
+          <div id="wxStatus" class="panel-note" style="margin:0 0 8px">위치를 불러오는 중…</div>
+          <div class="wx-main" id="wxMain" style="display:none">
+            <div class="wx-now">
+              <div class="wx-icon" id="wxIcon" aria-hidden="true">🌤</div>
+              <div class="wx-temp" id="wxTemp">-</div>
+            </div>
+            <div class="wx-desc" id="wxDesc">-</div>
+            <div class="wx-place" id="wxPlace">-</div>
+            <div class="wx-meta">
+              <div>습도<strong id="wxHum">-</strong></div>
+              <div>풍속<strong id="wxWind">-</strong></div>
+            </div>
+            <div class="wx-daily" id="wxDaily"></div>
+          </div>
+          <p class="panel-note">Open-Meteo · 시/구/동 검색 또는 GPS</p>
+        </div>
+      </div>
+
+      <div class="home-panel" id="panelRemind" data-panel="remind">
+        <button type="button" class="home-panel-toggle" data-toggle="remind" aria-expanded="false">
+          <span class="ttl"><span class="badge remind">REM</span>리마인드</span>
+          <span class="chev">▼</span>
+        </button>
+        <div class="home-panel-body">
+          <div class="rem-today-label" id="remTodayLabel">오늘 -</div>
+          <div class="rem-cal-block">
+            <div class="mini-cal-head">
+              <button type="button" class="mini-cal-nav" id="remCalPrev">‹</button>
+              <strong id="remCalTitle">-</strong>
+              <button type="button" class="mini-cal-nav" id="remCalNext">›</button>
+            </div>
+            <div class="mini-cal-grid" id="remCalDows"></div>
+            <div class="mini-cal-grid" id="remCalDays"></div>
+          </div>
+          <div class="rem-day-list" id="remDayList"></div>
+          <a class="fd-link-btn" href="remind.html">리마인드 관리 →</a>
+        </div>
+      </div>
+
+      <!-- 2행: 예비 영역 | 실시간 채팅 -->
+      <div class="home-panel" id="panelSlot" data-panel="slot">
+        <button type="button" class="home-panel-toggle" data-toggle="slot" aria-expanded="false">
+          <span class="ttl"><span class="badge slot">SLOT</span>예비 영역</span>
+          <span class="chev">▼</span>
+        </button>
+        <div class="home-panel-body">
+          <div class="slot-placeholder">컨텐츠 준비 중</div>
+        </div>
+      </div>
+
+      <div class="home-panel" id="panelChat" data-panel="chat">
+        <button type="button" class="home-panel-toggle" data-toggle="chat" aria-expanded="false">
+          <span class="ttl"><span class="badge chat">CHAT</span>실시간 채팅</span>
+          <span class="chev">▼</span>
+        </button>
+        <div class="home-panel-body">
+          <div class="chat-status" id="chatStatus">
+            <span class="dot"></span>
+            <span id="chatStatusText">연결 대기</span>
+            <button type="button" class="fd-btn fd-btn-ghost fd-btn-sm" id="chatRefreshBtn" title="연결 다시 시도">새로고침</button>
+          </div>
+          <div class="chat-log" id="chatLog" aria-live="polite"></div>
+          <div class="chat-pending" id="chatPending"></div>
+          <div class="chat-compose">
+            <textarea id="chatInput" placeholder="메시지 입력 · 이미지 URL/캡처는 Ctrl+V" maxlength="4000"></textarea>
+            <div class="chat-compose-actions">
+              <span class="hint">첨부 최대 5MB · 이미지/문서/ZIP · 클릭 시 다운로드</span>
+              <input type="file" id="chatFile" hidden multiple
+                accept=".png,.jpg,.jpeg,.gif,.webp,.bmp,.pdf,.txt,.csv,.zip,.doc,.docx,.xls,.xlsx,.ppt,.pptx,image/*">
+              <button type="button" class="fd-btn fd-btn-ghost fd-btn-sm" id="chatAttachBtn">파일 첨부</button>
+              <button type="button" class="fd-btn fd-btn-primary fd-btn-sm" id="chatSendBtn">전송</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="fd-tab-pane" id="tab-inbody">
+    <div class="score-row" id="scoreRow"></div>
+    <div class="home-layout">
+      <div class="charts-stack">
+        <div class="fd-card">
+          <div class="fd-card-title">체중 · 골격근 · 체지방</div>
+          <div class="fd-card-desc" id="chartDescMass">선택한 월 기준</div>
+          <div class="fd-chart-wrap" id="wrapMass"><canvas id="chartMass"></canvas></div>
+        </div>
+        <div class="fd-card">
+          <div class="fd-card-title">BMI · 체지방률 · 발달점수</div>
+          <div class="fd-card-desc" id="chartDescScore">선택한 월 기준</div>
+          <div class="fd-chart-wrap" id="wrapScore"><canvas id="chartScore"></canvas></div>
+        </div>
+      </div>
+      <div class="fd-card">
+        <div class="fd-card-title">측정 캘린더</div>
+        <div class="fd-card-desc">측정일이 표시된 날짜를 클릭하면 요약을 봅니다</div>
+        <div class="cal-head">
+          <button type="button" class="cal-nav" id="calPrev">‹</button>
+          <strong id="calTitle">-</strong>
+          <button type="button" class="cal-nav" id="calNext">›</button>
+        </div>
+        <div class="cal-grid" id="calDows"></div>
+        <div class="cal-grid" id="calDays"></div>
+        <div class="cal-legend" id="calLegend">측정 기록이 있는 날 · 클릭하여 상세</div>
+        <a class="fd-link-btn" href="health.html" style="margin-top:14px;display:inline-block">인바디 케어에서 관리 →</a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="fd-modal-backdrop" id="modalBg" role="dialog" aria-modal="true">
+  <div class="fd-modal">
+    <div class="fd-modal-head">
+      <div>
+        <h3 id="modalTitle">인바디 요약</h3>
+        <p id="modalSub">-</p>
+      </div>
+      <button type="button" class="fd-modal-close" id="modalClose" aria-label="닫기">×</button>
+    </div>
+    <div class="fd-modal-body" id="modalBody"></div>
+  </div>
+</div>
+
+<div class="chat-img-viewer" id="chatImgViewer" role="dialog" aria-modal="true" aria-label="이미지 보기">
+  <div class="chat-img-viewer-card">
+    <div class="chat-img-viewer-head">
+      <strong id="chatImgViewerTitle">이미지</strong>
+      <div class="chat-img-viewer-actions">
+        <a class="fd-btn fd-btn-ghost fd-btn-sm" id="chatImgDownload" href="#" download>다운로드</a>
+        <button type="button" class="fd-btn fd-btn-primary fd-btn-sm" id="chatImgClose">닫기</button>
+      </div>
+    </div>
+    <div class="chat-img-viewer-body">
+      <img id="chatImgViewerImg" src="" alt="미리보기">
+    </div>
+  </div>
+</div>
+
+<script src="js/app-shell.js"></script>
+<script>
+(function () {
+  var chartMass = null, chartScore = null, allList = [];
+  var OWNER_KEY = 'fd-home-inbody-owner', ownerUser = '';
+  var viewYear, viewMonth; // 0-based month
+  var selectedDate = '';
+  var byDate = {};
+
+  function fmt(n, d) {
+    if (n == null || n === '') return '-';
+    return Number(n).toFixed(d == null ? 1 : d);
+  }
+  function pad2(n) { return String(n).padStart(2, '0'); }
+  function ymd(y, m, d) { return y + '-' + pad2(m + 1) + '-' + pad2(d); }
+  function parseYmd(s) {
+    if (!s) return null;
+    var p = String(s).substring(0, 10).split('-');
+    if (p.length < 3) return null;
+    return { y: +p[0], m: +p[1] - 1, d: +p[2] };
+  }
+
+  var YT_ID = 'mBdybXu3T0U';
+  var YT_EMBED = 'https://www.youtube.com/embed/' + YT_ID + '?autoplay=1&mute=1&playsinline=1&rel=0';
+  var YT_WATCH = 'https://www.youtube.com/live/' + YT_ID + '?autoplay=1';
+  var ytWin = null;
+
+  function setHeaderForTab(name) {
+    var sub = document.getElementById('headerSub');
+    if (name === 'news') {
+      sub.textContent = '날씨 · 리마인드 · 실시간 채팅';
+      return;
+    }
+    var latest = latestOverall();
+    if (latest) {
+      sub.textContent = '최신 ' + String(latest.measuredAt).substring(0, 10) + ' · BMI ' + fmt(latest.bmi);
+    } else {
+      sub.textContent = '인바디 지표와 측정 일정을 확인합니다';
+    }
+  }
+
+  function isPanelOpen(id) {
+    var el = document.getElementById(id);
+    return !!(el && el.classList.contains('open'));
+  }
+
+  function setFrameSrc(frameId, src, on) {
+    var iframe = document.getElementById(frameId);
+    if (!iframe) return;
+    if (on) {
+      if (iframe.getAttribute('src') !== src) iframe.setAttribute('src', src);
+    } else {
+      iframe.setAttribute('src', '');
+    }
+  }
+
+  function syncHomePanels(tabActive) {
+    var channelOpen = tabActive && isPanelOpen('panelChannelA');
+    setFrameSrc('ytPlayer', YT_EMBED, channelOpen);
+    var fallback = document.getElementById('ytFallback');
+    if (fallback) fallback.classList.remove('show');
+  }
+
+  function syncRemindWeatherEqualHeight() {
+    var panels = document.querySelector('.home-panels');
+    var rem = document.getElementById('panelRemind');
+    var wx = document.getElementById('panelWeather');
+    if (!panels || !rem || !wx) return;
+    panels.classList.remove('eq-remind-weather');
+    panels.style.removeProperty('--eq-panel-h');
+    rem.style.height = '';
+    wx.style.height = '';
+    if (window.matchMedia('(max-width: 900px)').matches) return;
+    if (!rem.classList.contains('open') || !wx.classList.contains('open')) return;
+    // 둘 다 열린 경우에만 더 큰 쪽에 맞춤
+    var h = Math.max(rem.getBoundingClientRect().height, wx.getBoundingClientRect().height);
+    if (h > 0) {
+      panels.style.setProperty('--eq-panel-h', Math.round(h) + 'px');
+      panels.classList.add('eq-remind-weather');
+    }
+  }
+
+  function togglePanel(key) {
+    var panel = document.querySelector('.home-panel[data-panel="' + key + '"]');
+    if (!panel) return;
+    var open = !panel.classList.contains('open');
+    panel.classList.toggle('open', open);
+    var btn = panel.querySelector('.home-panel-toggle');
+    if (btn) btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+    syncHomePanels(document.getElementById('tab-news').classList.contains('active'));
+    setTimeout(syncRemindWeatherEqualHeight, 0);
+    setTimeout(syncRemindWeatherEqualHeight, 100);
+    if (key === 'chat') {
+      if (open) ensureChatReady();
+      else maybeDisconnectChat();
+    }
+  }
+
+  function openYtLive() {
+    var w = Math.min(1280, screen.availWidth - 40);
+    var h = Math.min(720, screen.availHeight - 80);
+    var left = Math.max(0, Math.floor((screen.availWidth - w) / 2));
+    var top = Math.max(0, Math.floor((screen.availHeight - h) / 2));
+    var features = 'popup=yes,width=' + w + ',height=' + h + ',left=' + left + ',top=' + top;
+    if (ytWin && !ytWin.closed) {
+      ytWin.focus();
+      return ytWin;
+    }
+    ytWin = window.open(YT_WATCH, 'fdYtLive', features);
+    return ytWin;
+  }
+
+  function switchTab(name) {
+    document.querySelectorAll('.fd-tab-btn').forEach(function (b) {
+      b.classList.toggle('active', b.getAttribute('data-tab') === name);
+    });
+    document.querySelectorAll('.fd-tab-pane').forEach(function (p) {
+      p.classList.toggle('active', p.id === 'tab-' + name);
+    });
+    document.getElementById('userBar').classList.toggle('hidden', name !== 'inbody');
+    setHeaderForTab(name);
+    syncHomePanels(name === 'news');
+    if (name === 'inbody') {
+      renderChart();
+      setTimeout(function () {
+        if (chartMass) chartMass.resize();
+        if (chartScore) chartScore.resize();
+      }, 60);
+    }
+  }
+
+  function indexByDate() {
+    byDate = {};
+    allList.forEach(function (r) {
+      var key = String(r.measuredAt || '').substring(0, 10);
+      if (!key) return;
+      if (!byDate[key] || String(r.measuredAt) >= String(byDate[key].measuredAt)) {
+        byDate[key] = r;
+      }
+    });
+  }
+
+  function recordsInViewMonth() {
+    var prefix = viewYear + '-' + pad2(viewMonth + 1);
+    return allList.filter(function (r) {
+      return String(r.measuredAt || '').substring(0, 7) === prefix;
+    });
+  }
+
+  function latestOverall() {
+    if (!allList.length) return null;
+    return allList[allList.length - 1];
+  }
+
+  function renderScores() {
+    var latest = latestOverall();
+    var box = document.getElementById('scoreRow');
+    if (!latest) {
+      box.innerHTML = '<div class="fd-empty" style="grid-column:1/-1">인바디 기록이 없습니다.</div>';
+      return;
+    }
+    box.innerHTML =
+      scoreCard('BMI', fmt(latest.bmi), '', true) +
+      scoreCard('신체발달점수', latest.fitnessScore != null ? latest.fitnessScore : '-', '점', false) +
+      scoreCard('체중', fmt(latest.weightKg), 'kg', false) +
+      scoreCard('체지방률', fmt(latest.percentBodyFat), '%', false);
+    if (document.querySelector('.fd-tab-btn.active') &&
+        document.querySelector('.fd-tab-btn.active').getAttribute('data-tab') === 'inbody') {
+      setHeaderForTab('inbody');
+    }
+  }
+
+  function scoreCard(label, value, unit, isBmi) {
+    return '<div class="score-card' + (isBmi ? ' bmi' : '') + '"><div class="lbl">' + label +
+      '</div><div class="val">' + value + (unit ? '<span>' + unit + '</span>' : '') + '</div></div>';
+  }
+
+  function renderCalendar() {
+    document.getElementById('calTitle').textContent = viewYear + '년 ' + (viewMonth + 1) + '월';
+    var dows = ['일', '월', '화', '수', '목', '금', '토'];
+    document.getElementById('calDows').innerHTML = dows.map(function (d) {
+      return '<div class="cal-dow">' + d + '</div>';
+    }).join('');
+
+    var first = new Date(viewYear, viewMonth, 1);
+    var startDow = first.getDay();
+    var daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
+    var prevDays = new Date(viewYear, viewMonth, 0).getDate();
+    var cells = [];
+    var i;
+    for (i = 0; i < startDow; i++) {
+      var pd = prevDays - startDow + i + 1;
+      cells.push({ day: pd, other: true, date: null });
+    }
+    for (i = 1; i <= daysInMonth; i++) {
+      var ds = ymd(viewYear, viewMonth, i);
+      cells.push({ day: i, other: false, date: ds, has: !!byDate[ds] });
+    }
+    while (cells.length % 7 !== 0) {
+      cells.push({ day: cells.length % 7 === 0 ? 1 : (cells[cells.length - 1].day + 1), other: true, date: null });
+    }
+
+    var measured = 0;
+    document.getElementById('calDays').innerHTML = cells.map(function (c) {
+      if (c.has) measured++;
+      var cls = 'cal-day' + (c.other ? ' other' : '') + (c.has ? ' has' : '') +
+        (c.date && c.date === selectedDate ? ' selected' : '');
+      var attrs = c.has ? ' data-date="' + c.date + '"' : ' disabled';
+      return '<button type="button" class="' + cls + '"' + attrs + '>' + c.day +
+        (c.has ? '<span class="dot"></span>' : '') + '</button>';
+    }).join('');
+
+    document.getElementById('calLegend').textContent =
+      viewYear + '년 ' + (viewMonth + 1) + '월 측정 ' + measured + '일 · 날짜 클릭 시 요약';
+
+    document.querySelectorAll('#calDays [data-date]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        selectedDate = btn.getAttribute('data-date');
+        renderCalendar();
+        openPopup(byDate[selectedDate]);
+      });
+    });
+  }
+
+  function renderChart() {
+    var list = recordsInViewMonth();
+    var desc = viewYear + '년 ' + (viewMonth + 1) + '월 · ' + list.length + '건';
+    document.getElementById('chartDescMass').textContent = desc;
+    document.getElementById('chartDescScore').textContent = desc;
+    var wrapMass = document.getElementById('wrapMass');
+    var wrapScore = document.getElementById('wrapScore');
+    if (chartMass) { chartMass.destroy(); chartMass = null; }
+    if (chartScore) { chartScore.destroy(); chartScore = null; }
+    if (!list.length) {
+      wrapMass.innerHTML = '<div class="fd-chart-empty">이달 측정 데이터 없음</div>';
+      wrapScore.innerHTML = '<div class="fd-chart-empty">이달 측정 데이터 없음</div>';
+      return;
+    }
+    wrapMass.innerHTML = '<canvas id="chartMass"></canvas>';
+    wrapScore.innerHTML = '<canvas id="chartScore"></canvas>';
+    var labels = list.map(function (r) { return String(r.measuredAt).substring(5, 10); });
+    var narrow = window.matchMedia('(max-width: 560px)').matches;
+    var legend = {
+      position: 'bottom',
+      labels: { boxWidth: narrow ? 10 : 14, padding: narrow ? 8 : 14, font: { size: narrow ? 10 : 12 } }
+    };
+    var tick = { font: { size: narrow ? 9 : 11 }, maxRotation: 0, autoSkip: true, maxTicksLimit: narrow ? 5 : 8 };
+    chartMass = new Chart(document.getElementById('chartMass').getContext('2d'), {
+      type: 'line',
+      data: {
+        labels: labels,
+        datasets: [
+          { label: '체중', data: list.map(function (r) { return r.weightKg; }), borderColor: '#5C5FCE', tension: .35, fill: false, pointRadius: narrow ? 2 : 3 },
+          { label: '골격근', data: list.map(function (r) { return r.skeletalMuscleKg; }), borderColor: '#7DD3C0', tension: .35, fill: false, pointRadius: narrow ? 2 : 3 },
+          { label: '체지방', data: list.map(function (r) { return r.bodyFatMassKg; }), borderColor: '#F47B7B', tension: .35, fill: false, pointRadius: narrow ? 2 : 3 }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: false,
+        layout: { padding: { top: 4, bottom: 0 } },
+        plugins: { legend: legend },
+        scales: {
+          y: { ticks: tick, grid: { color: '#F0F2F8' } },
+          x: { ticks: tick, grid: { display: false } }
+        }
+      }
+    });
+    chartScore = new Chart(document.getElementById('chartScore').getContext('2d'), {
+      type: 'line',
+      data: {
+        labels: labels,
+        datasets: [
+          { label: 'BMI', data: list.map(function (r) { return r.bmi; }), borderColor: '#9B8FE0', tension: .35, yAxisID: 'y', pointRadius: narrow ? 2 : 3 },
+          { label: '체지방률%', data: list.map(function (r) { return r.percentBodyFat; }), borderColor: '#F5A8C8', tension: .35, yAxisID: 'y', pointRadius: narrow ? 2 : 3 },
+          { label: '발달점수', data: list.map(function (r) { return r.fitnessScore; }), borderColor: '#F5C45E', tension: .35, yAxisID: 'y1', pointRadius: narrow ? 2 : 3 }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: false,
+        layout: { padding: { top: 4, bottom: 0 } },
+        plugins: { legend: legend },
+        scales: {
+          y: { position: 'left', ticks: tick, grid: { color: '#F0F2F8' } },
+          y1: { position: 'right', ticks: tick, grid: { display: false } },
+          x: { ticks: tick, grid: { display: false } }
+        }
+      }
+    });
+  }
+
+  function openPopup(r) {
+    if (!r) return;
+    var date = String(r.measuredAt).substring(0, 10);
+    document.getElementById('modalTitle').textContent = '인바디 요약';
+    document.getElementById('modalSub').textContent = date + ' 측정' + (r.createUser ? ' · ' + r.createUser : '');
+    document.getElementById('modalBody').innerHTML =
+      '<div class="popup-scores">' +
+        '<div class="popup-score bmi"><div class="lbl">BMI</div><div class="val">' + fmt(r.bmi) + '</div></div>' +
+        '<div class="popup-score"><div class="lbl">신체발달점수</div><div class="val">' + (r.fitnessScore != null ? r.fitnessScore : '-') + '</div></div>' +
+        '<div class="popup-score"><div class="lbl">체중</div><div class="val">' + fmt(r.weightKg) + '<span style="font-size:12px;font-weight:600;color:#888"> kg</span></div></div>' +
+        '<div class="popup-score"><div class="lbl">체지방률</div><div class="val">' + fmt(r.percentBodyFat) + '<span style="font-size:12px;font-weight:600;color:#888"> %</span></div></div>' +
+      '</div>' +
+      '<div class="meta-row">' +
+        chip('골격근 ' + fmt(r.skeletalMuscleKg) + ' kg') +
+        chip('체지방 ' + fmt(r.bodyFatMassKg) + ' kg') +
+        chip('내장지방 Lv.' + (r.visceralFatLevel != null ? r.visceralFatLevel : '-')) +
+        chip('기초대사 ' + (r.bmrKcal != null ? r.bmrKcal + ' kcal' : '-')) +
+        chip('복부지방률 ' + fmt(r.waistHipRatio, 2)) +
+        chip('지방조절 ' + (r.fatControlKg != null ? r.fatControlKg + ' kg' : '-')) +
+        chip('근육조절 ' + (r.muscleControlKg != null ? r.muscleControlKg + ' kg' : '-')) +
+      '</div>' +
+      (r.note ? '<p style="margin:14px 0 0;font-size:13px;color:var(--text-sec)">' + cxEscapeHtml(r.note) + '</p>' : '');
+    document.getElementById('modalBg').classList.add('show');
+  }
+
+  function chip(t) { return '<span class="fd-chip">' + cxEscapeHtml(t) + '</span>'; }
+
+  function closePopup() {
+    document.getElementById('modalBg').classList.remove('show');
+  }
+
+  function renderAll() {
+    indexByDate();
+    renderScores();
+    renderCalendar();
+    renderChart();
+  }
+
+  function shiftMonth(delta) {
+    viewMonth += delta;
+    if (viewMonth < 0) { viewMonth = 11; viewYear--; }
+    if (viewMonth > 11) { viewMonth = 0; viewYear++; }
+    selectedDate = '';
+    renderAll();
+  }
+
+  async function loadData() {
+    var res = await cxApiFetch(fdInbodyUrl('/summary', ownerUser));
+    if (!res.ok) throw new Error('summary fail');
+    var data = await res.json();
+    allList = data.list || [];
+    if (data.owner) ownerUser = data.owner;
+    var latest = latestOverall();
+    if (latest) {
+      var p = parseYmd(latest.measuredAt);
+      if (p) { viewYear = p.y; viewMonth = p.m; }
+    } else {
+      var now = new Date();
+      viewYear = now.getFullYear();
+      viewMonth = now.getMonth();
+    }
+    selectedDate = '';
+    renderAll();
+  }
+
+  /* —— 홈 리마인드 미니 캘린더 —— */
+  var remYear, remMonth, remSelected = '', remByDate = {}, remList = [];
+
+  function todayYmd() {
+    var n = new Date();
+    return ymd(n.getFullYear(), n.getMonth(), n.getDate());
+  }
+
+  function renderRemCalendar() {
+    var today = todayYmd();
+    document.getElementById('remTodayLabel').textContent = '오늘 ' + today;
+    document.getElementById('remCalTitle').textContent = remYear + '년 ' + (remMonth + 1) + '월';
+    var dows = ['일','월','화','수','목','금','토'];
+    document.getElementById('remCalDows').innerHTML = dows.map(function (d) {
+      return '<div class="mini-cal-dow">' + d + '</div>';
+    }).join('');
+    var first = new Date(remYear, remMonth, 1);
+    var startDow = first.getDay();
+    var daysInMonth = new Date(remYear, remMonth + 1, 0).getDate();
+    var prevDays = new Date(remYear, remMonth, 0).getDate();
+    var cells = [], i;
+    for (i = 0; i < startDow; i++) {
+      cells.push({ day: prevDays - startDow + i + 1, other: true, date: null });
+    }
+    for (i = 1; i <= daysInMonth; i++) {
+      var ds = ymd(remYear, remMonth, i);
+      cells.push({ day: i, other: false, date: ds, has: !!(remByDate[ds] && remByDate[ds].length) });
+    }
+    while (cells.length % 7 !== 0) {
+      var last = cells[cells.length - 1];
+      cells.push({ day: (last.other ? last.day : 0) + 1, other: true, date: null });
+    }
+    document.getElementById('remCalDays').innerHTML = cells.map(function (c) {
+      var cls = 'mini-cal-day' +
+        (c.other ? ' other' : ' cur') +
+        (c.has ? ' has' : '') +
+        (c.date && c.date === today ? ' today' : '') +
+        (c.date && c.date === remSelected ? ' selected' : '');
+      var attrs = c.date ? ' data-date="' + c.date + '"' : ' disabled';
+      return '<button type="button" class="' + cls + '"' + attrs + '>' + c.day +
+        (c.has ? '<span class="dot"></span>' : '') + '</button>';
+    }).join('');
+    document.querySelectorAll('#remCalDays [data-date]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        remSelected = btn.getAttribute('data-date');
+        renderRemCalendar();
+        renderRemDayList();
+        setTimeout(syncRemindWeatherEqualHeight, 0);
+      });
+    });
+  }
+
+  function renderRemDayList() {
+    var box = document.getElementById('remDayList');
+    if (!remSelected) {
+      box.innerHTML = '<div class="fd-empty" style="padding:12px">날짜를 선택하세요</div>';
+      return;
+    }
+    var list = remByDate[remSelected] || [];
+    if (!list.length) {
+      box.innerHTML = '<div class="fd-empty" style="padding:12px">' + remSelected + ' 일정 없음</div>';
+      return;
+    }
+    box.innerHTML = list.map(function (r) {
+      return '<div class="rem-day-item' + (r.doneYn === 'Y' ? ' done' : '') + '"><div class="t">' +
+        cxEscapeHtml(r.title) + '</div>' +
+        (r.content ? '<div style="margin-top:2px;color:var(--text-ter)">' + cxEscapeHtml(r.content) + '</div>' : '') +
+        '</div>';
+    }).join('');
+  }
+
+  async function loadRemindMonth() {
+    if (remYear == null || remMonth == null) {
+      var n = new Date();
+      remYear = n.getFullYear();
+      remMonth = n.getMonth();
+    }
+    if (!remSelected) remSelected = todayYmd();
+    renderRemCalendar();
+    renderRemDayList();
+    try {
+      var res = await cxApiFetch(FD_REMINDERS_BASE + '?year=' + remYear + '&month=' + (remMonth + 1));
+      if (!res.ok) throw new Error('remind fail');
+      var data = await res.json();
+      remList = data.list || [];
+      remByDate = {};
+      remList.forEach(function (r) {
+        var key = String(r.remindDate || '').substring(0, 10);
+        if (!key) return;
+        if (!remByDate[key]) remByDate[key] = [];
+        remByDate[key].push(r);
+      });
+      renderRemCalendar();
+      renderRemDayList();
+      setTimeout(syncRemindWeatherEqualHeight, 0);
+    } catch (e) {
+      console.error(e);
+      document.getElementById('remDayList').innerHTML = '';
+    }
+  }
+
+  function shiftRemMonth(delta) {
+    remMonth += delta;
+    if (remMonth < 0) { remMonth = 11; remYear--; }
+    if (remMonth > 11) { remMonth = 0; remYear++; }
+    remSelected = '';
+    loadRemindMonth();
+  }
+
+  /* —— Open-Meteo 날씨 —— */
+  var WX_KEY = 'fd-home-weather-v2';
+  /* 이미지에서 선택한 가산동 (37.477, 126.883) */
+  var WX_DEFAULT = {
+    lat: 37.477,
+    lon: 126.883,
+    label: '서울특별시 금천구 가산동'
+  };
+  var wxCurrent = null;
+  var WX_CODE = {
+    0: '맑음', 1: '대체로 맑음', 2: '구름 조금', 3: '흐림',
+    45: '안개', 48: '착빙 안개',
+    51: '이슬비', 53: '이슬비', 55: '강한 이슬비',
+    61: '비', 63: '비', 65: '강한 비',
+    71: '눈', 73: '눈', 75: '강한 눈',
+    80: '소나기', 81: '소나기', 82: '강한 소나기',
+    95: '뇌우', 96: '뇌우·우박', 99: '뇌우·우박'
+  };
+  var WX_ICON = {
+    0: '☀️', 1: '🌤', 2: '⛅', 3: '☁️',
+    45: '🌫', 48: '🌫',
+    51: '🌦', 53: '🌦', 55: '🌧',
+    61: '🌧', 63: '🌧', 65: '⛈',
+    71: '🌨', 73: '❄️', 75: '❄️',
+    80: '🌦', 81: '🌧', 82: '⛈',
+    95: '⛈', 96: '⛈', 99: '⛈'
+  };
+
+  function wxStatus(msg) { document.getElementById('wxStatus').textContent = msg || ''; }
+  function wxIcon(code) { return WX_ICON[code] || '🌡'; }
+  function wxLabel(code) { return WX_CODE[code] || ('코드 ' + code); }
+
+  function saveWxPlace(place) {
+    try { localStorage.setItem(WX_KEY, JSON.stringify(place)); } catch (e) {}
+  }
+  function loadWxPlace() {
+    try { return JSON.parse(localStorage.getItem(WX_KEY) || 'null'); } catch (e) { return null; }
+  }
+
+  function clearWxHits() {
+    var box = document.getElementById('wxHits');
+    if (!box) return;
+    box.innerHTML = '';
+    box.classList.remove('show');
+  }
+
+  function formatWxHitLabel(hit) {
+    if (hit.label) return hit.label;
+    return [hit.name, hit.admin2, hit.admin1, hit.country]
+      .filter(Boolean)
+      .filter(function (v, i, a) { return a.indexOf(v) === i; })
+      .join(' ');
+  }
+
+  function renderWxHits(hits) {
+    var box = document.getElementById('wxHits');
+    if (!box) return;
+    if (!hits || !hits.length) {
+      clearWxHits();
+      return;
+    }
+    box.innerHTML = hits.map(function (h, i) {
+      var title = formatWxHitLabel(h);
+      var sub = (h.latitude != null && h.longitude != null)
+        ? (Number(h.latitude).toFixed(3) + ', ' + Number(h.longitude).toFixed(3))
+        : '';
+      return '<button type="button" class="wx-hit" data-idx="' + i + '" role="option">' +
+        '<div class="n">' + title + '</div>' +
+        (sub ? '<div class="s">' + sub + '</div>' : '') +
+        '</button>';
+    }).join('');
+    box.classList.add('show');
+    box.querySelectorAll('.wx-hit').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var idx = Number(btn.getAttribute('data-idx'));
+        var hit = hits[idx];
+        if (!hit) return;
+        clearWxHits();
+        fetchWeather(hit.latitude, hit.longitude, formatWxHitLabel(hit))
+          .catch(function () { wxStatus('날씨 조회 실패'); });
+      });
+    });
+  }
+
+  /** 한국어 주소 → Open-Meteo/Nominatim용 검색어 후보 */
+  function buildWxQueryVariants(raw) {
+    var q = String(raw || '').trim().replace(/\s+/g, ' ');
+    if (!q) return [];
+    var variants = [];
+    function add(v) {
+      v = String(v || '').trim().replace(/\s+/g, ' ');
+      if (v && variants.indexOf(v) < 0) variants.push(v);
+    }
+    add(q);
+    // 서울시/부산광역시 → 서울/부산, 특별자치시 등 정규화
+    var norm = q
+      .replace(/특별자치시|광역시|특별시|자치시/g, '시')
+      .replace(/특별자치도|자치도/g, '도');
+    add(norm);
+    add(norm.replace(/([가-힣]+)시\b/g, '$1'));
+    // "서울 금천구 가산동" / "금천구 가산동" / "가산동"
+    var parts = norm.replace(/([가-힣]+)시\b/g, '$1').split(/\s+/).filter(Boolean);
+    if (parts.length >= 2) add(parts.slice(-2).join(' '));
+    if (parts.length >= 1) add(parts[parts.length - 1]);
+    // "서울시금천구가산동"처럼 붙여 쓴 경우 분리 시도
+    var glued = q.replace(/\s+/g, '');
+    var m = glued.match(/^(.+?(?:시|도))?(.+?구)?(.+?(?:동|읍|면|리))?$/);
+    if (m) {
+      var city = (m[1] || '').replace(/(특별자치시|광역시|특별시|시)$/,'');
+      var gu = m[2] || '';
+      var dong = m[3] || '';
+      if (city && gu && dong) add(city + ' ' + gu + ' ' + dong);
+      if (gu && dong) add(gu + ' ' + dong);
+      if (dong) add(dong);
+    }
+    return variants.slice(0, 6);
+  }
+
+  function hitKey(h) {
+    return (Number(h.latitude).toFixed(3) + ',' + Number(h.longitude).toFixed(3));
+  }
+
+  function preferKr(a, b) {
+    var ak = (a.country_code || a.countryCode || '').toLowerCase() === 'kr' ? 0 : 1;
+    var bk = (b.country_code || b.countryCode || '').toLowerCase() === 'kr' ? 0 : 1;
+    if (ak !== bk) return ak - bk;
+    return 0;
+  }
+
+  async function geocodeOpenMeteo(name) {
+    var url = 'https://geocoding-api.open-meteo.com/v1/search?name=' +
+      encodeURIComponent(name) + '&count=8&language=ko&format=json&countryCode=kr';
+    var res = await fetch(url);
+    if (!res.ok) return [];
+    var data = await res.json();
+    return (data.results || []).map(function (r) {
+      return {
+        name: r.name,
+        admin1: r.admin1,
+        admin2: r.admin2,
+        country: r.country,
+        country_code: r.country_code,
+        latitude: r.latitude,
+        longitude: r.longitude
+      };
+    });
+  }
+
+  async function geocodeNominatim(name) {
+    try {
+      var url = 'https://nominatim.openstreetmap.org/search?q=' +
+        encodeURIComponent(name) +
+        '&format=json&addressdetails=1&limit=6&countrycodes=kr&accept-language=ko';
+      var res = await fetch(url, {
+        headers: { 'Accept': 'application/json' }
+      });
+      if (!res.ok) return [];
+      var data = await res.json();
+      return (data || []).map(function (r) {
+        var a = r.address || {};
+        var dong = a.suburb || a.neighbourhood || a.quarter || a.village || a.town || '';
+        var gu = a.borough || a.city_district || a.county || a.municipality || '';
+        var city = a.city || a.state || a.province || '';
+        var label = [city, gu, dong || r.name].filter(Boolean)
+          .filter(function (v, i, arr) { return arr.indexOf(v) === i; })
+          .join(' ');
+        return {
+          name: dong || r.name,
+          admin1: city,
+          admin2: gu,
+          country: a.country || '대한민국',
+          country_code: 'kr',
+          latitude: Number(r.lat),
+          longitude: Number(r.lon),
+          label: label || r.display_name
+        };
+      });
+    } catch (e) {
+      return [];
+    }
+  }
+
+  async function searchGeoHits(q) {
+    var variants = buildWxQueryVariants(q);
+    var merged = [];
+    var seen = {};
+    function pushAll(list) {
+      (list || []).forEach(function (h) {
+        if (h.latitude == null || h.longitude == null) return;
+        var k = hitKey(h);
+        if (seen[k]) return;
+        seen[k] = true;
+        merged.push(h);
+      });
+    }
+    // Open-Meteo 후보 병렬 조회
+    var omLists = await Promise.all(variants.map(function (v) {
+      return geocodeOpenMeteo(v).catch(function () { return []; });
+    }));
+    omLists.forEach(pushAll);
+    // 결과가 없거나 구/동 입력이면 Nominatim 보강
+    var looksDetailed = /[구동읍면리]/.test(q) || variants.length > 1;
+    if (!merged.length || looksDetailed) {
+      var nmLists = await Promise.all(variants.slice(0, 3).map(function (v) {
+        return geocodeNominatim(v);
+      }));
+      nmLists.forEach(pushAll);
+    }
+    merged.sort(preferKr);
+    return merged.slice(0, 8);
+  }
+
+  async function fetchWeather(lat, lon, label) {
+    wxStatus('날씨 불러오는 중…');
+    clearWxHits();
+    var url = 'https://api.open-meteo.com/v1/forecast?latitude=' + lat +
+      '&longitude=' + lon +
+      '&current=temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m' +
+      '&daily=weather_code,temperature_2m_max,temperature_2m_min&timezone=auto&forecast_days=5';
+    var res = await fetch(url);
+    if (!res.ok) throw new Error('weather api');
+    var data = await res.json();
+    var cur = data.current || {};
+    document.getElementById('wxMain').style.display = '';
+    document.getElementById('wxIcon').textContent = wxIcon(cur.weather_code);
+    document.getElementById('wxTemp').innerHTML = Math.round(cur.temperature_2m) + '<span>°C</span>';
+    document.getElementById('wxDesc').textContent = wxLabel(cur.weather_code);
+    document.getElementById('wxPlace').textContent = label || (lat.toFixed(2) + ', ' + lon.toFixed(2));
+    document.getElementById('wxHum').textContent = (cur.relative_humidity_2m != null ? cur.relative_humidity_2m + '%' : '-');
+    document.getElementById('wxWind').textContent = (cur.wind_speed_10m != null ? cur.wind_speed_10m + ' km/h' : '-');
+    var daily = data.daily || {};
+    var days = daily.time || [];
+    document.getElementById('wxDaily').innerHTML = days.map(function (t, i) {
+      var code = (daily.weather_code || [])[i];
+      var mx = (daily.temperature_2m_max || [])[i];
+      var mn = (daily.temperature_2m_min || [])[i];
+      return '<div class="wx-day"><div class="d">' + String(t).substring(5) + '</div>' +
+        '<div class="ico" title="' + wxLabel(code) + '">' + wxIcon(code) + '</div>' +
+        '<div class="r">' + Math.round(mn) + '° / ' + Math.round(mx) + '°</div></div>';
+    }).join('');
+    wxStatus('');
+    wxCurrent = { lat: lat, lon: lon, label: label || '' };
+    saveWxPlace(wxCurrent);
+    var q = document.getElementById('wxQuery');
+    if (q && label) q.value = label;
+    setTimeout(syncRemindWeatherEqualHeight, 0);
+  }
+
+  async function refreshWeather() {
+    var place = wxCurrent || loadWxPlace() || WX_DEFAULT;
+    if (!place || place.lat == null || place.lon == null) {
+      wxStatus('갱신할 위치가 없습니다');
+      return;
+    }
+    try {
+      await fetchWeather(place.lat, place.lon, place.label || WX_DEFAULT.label);
+      wxStatus('날씨를 갱신했습니다');
+      setTimeout(function () { wxStatus(''); }, 1600);
+    } catch (e) {
+      wxStatus('날씨 갱신 실패');
+    }
+  }
+
+  async function searchWeatherPlace(q) {
+    if (!q || !q.trim()) { wxStatus('지역명을 입력하세요'); clearWxHits(); return; }
+    wxStatus('지역 검색 중…');
+    clearWxHits();
+    var hits = await searchGeoHits(q.trim());
+    if (!hits.length) {
+      wxStatus('검색 결과가 없습니다. 예: 서울 금천구 가산동');
+      return;
+    }
+    if (hits.length === 1) {
+      await fetchWeather(hits[0].latitude, hits[0].longitude, formatWxHitLabel(hits[0]));
+      return;
+    }
+    wxStatus('검색 결과 ' + hits.length + '건 · 원하는 지역을 선택하세요');
+    renderWxHits(hits);
+  }
+
+  function weatherByGps() {
+    return new Promise(function (resolve) {
+      wxStatus('GPS 위치 확인 중…');
+      function done(p) { resolve(p); }
+      function fallback() {
+        wxStatus('위치 확인 실패 · 기본 지역(가산동)으로 표시합니다.');
+        fetchWeather(WX_DEFAULT.lat, WX_DEFAULT.lon, WX_DEFAULT.label)
+          .then(done).catch(function () { wxStatus('날씨 조회 실패'); done(); });
+      }
+      if (!navigator.geolocation) {
+        fallback();
+        return;
+      }
+      navigator.geolocation.getCurrentPosition(
+        function (pos) {
+          fetchWeather(pos.coords.latitude, pos.coords.longitude, '현재 위치')
+            .then(done).catch(function () { wxStatus('날씨 조회 실패'); done(); });
+        },
+        function () { fallback(); },
+        { enableHighAccuracy: false, timeout: 8000, maximumAge: 300000 }
+      );
+    });
+  }
+
+  async function initWeather() {
+    var saved = loadWxPlace();
+    var place = (saved && saved.lat != null && saved.lon != null) ? saved : WX_DEFAULT;
+    var q = document.getElementById('wxQuery');
+    if (q) q.value = place.label || WX_DEFAULT.label;
+    try {
+      await fetchWeather(place.lat, place.lon, place.label || WX_DEFAULT.label);
+    } catch (e) {
+      await fetchWeather(WX_DEFAULT.lat, WX_DEFAULT.lon, WX_DEFAULT.label);
+    }
+  }
+
+  document.querySelectorAll('.fd-tab-btn').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      switchTab(btn.getAttribute('data-tab'));
+    });
+  });
+  document.querySelectorAll('.home-panel-toggle').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      togglePanel(btn.getAttribute('data-toggle'));
+    });
+  });
+  var ytOpenBtn = document.getElementById('ytOpenBtn');
+  if (ytOpenBtn) ytOpenBtn.addEventListener('click', function () { openYtLive(); });
+  syncHomePanels(true);
+  document.getElementById('calPrev').addEventListener('click', function () { shiftMonth(-1); });
+  document.getElementById('calNext').addEventListener('click', function () { shiftMonth(1); });
+  document.getElementById('remCalPrev').addEventListener('click', function () { shiftRemMonth(-1); });
+  document.getElementById('remCalNext').addEventListener('click', function () { shiftRemMonth(1); });
+  /* —— 실시간 채팅 (WebSocket/STOMP) —— */
+  var chatStomp = null;
+  var chatSock = null;
+  var chatConnected = false;
+  var chatHistoryLoaded = false;
+  var chatPending = [];
+  var chatSeen = {};
+
+  function chatAssetUrl(path) {
+    if (!path) return '';
+    if (/^https?:\/\//i.test(path)) return path;
+    return (CX_APP_BASE || '') + path;
+  }
+
+  function setChatStatus(state, text) {
+    var el = document.getElementById('chatStatus');
+    var tx = document.getElementById('chatStatusText');
+    if (!el || !tx) return;
+    el.classList.remove('on', 'err');
+    if (state === 'on') el.classList.add('on');
+    if (state === 'err') el.classList.add('err');
+    tx.textContent = text || '';
+  }
+
+  function isImageAtt(a) {
+    var ct = String((a && a.contentType) || '').toLowerCase();
+    var n = String((a && (a.originalName || a.name)) || '').toLowerCase();
+    var u = String((a && (a.url || a.externalUrl)) || '').toLowerCase();
+    return ct.indexOf('image/') === 0
+      || /\.(png|jpe?g|gif|webp|bmp)(\?|#|$)/i.test(n)
+      || /\.(png|jpe?g|gif|webp|bmp)(\?|#|$)/i.test(u);
+  }
+
+  function isImageUrl(u) {
+    return /^https?:\/\/\S+\.(png|jpe?g|gif|webp|bmp)(\?\S*)?$/i.test(String(u || '').trim());
+  }
+
+  function extractImageUrls(text) {
+    var re = /https?:\/\/[^\s<>"']+\.(?:png|jpe?g|gif|webp|bmp)(?:\?[^\s<>"']*)?/gi;
+    var m = String(text || '').match(re);
+    return m ? m : [];
+  }
+
+  function formatBytes(n) {
+    n = Number(n) || 0;
+    if (n < 1024) return n + ' B';
+    if (n < 1048576) return (n / 1024).toFixed(1) + ' KB';
+    return (n / 1048576).toFixed(1) + ' MB';
+  }
+
+  function fileNameFromUrl(u) {
+    try {
+      var p = String(u).split('?')[0];
+      var parts = p.split('/');
+      return decodeURIComponent(parts[parts.length - 1] || 'image');
+    } catch (e) {
+      return 'image';
+    }
+  }
+
+  /** 본문에서 이미지 URL은 썸네일로, 나머지는 텍스트로 */
+  function renderBodyHtml(text) {
+    var raw = String(text || '');
+    if (!raw) return '';
+    var urls = extractImageUrls(raw);
+    if (!urls.length) {
+      return '<div class="chat-text-part">' + cxEscapeHtml(raw) + '</div>';
+    }
+    var leftover = raw;
+    urls.forEach(function (u) { leftover = leftover.split(u).join(' '); });
+    leftover = leftover.replace(/\s+/g, ' ').trim();
+    var html = '';
+    if (leftover) html += '<div class="chat-text-part">' + cxEscapeHtml(leftover) + '</div>';
+    urls.forEach(function (u) {
+      var safe = cxEscapeHtml(u);
+      var name = cxEscapeHtml(fileNameFromUrl(u));
+      html += '<button type="button" class="chat-img-link" data-view-src="' + safe + '" data-view-name="' + name + '" data-dl-src="' + safe + '" title="클릭하여 크게 보기">' +
+        '<img src="' + safe + '" alt="' + name + '" loading="lazy"></button>';
+    });
+    return html;
+  }
+
+  function openChatImageViewer(src, name, dlSrc) {
+    var viewer = document.getElementById('chatImgViewer');
+    var img = document.getElementById('chatImgViewerImg');
+    var title = document.getElementById('chatImgViewerTitle');
+    var dl = document.getElementById('chatImgDownload');
+    if (!viewer || !img) return;
+    img.src = src || '';
+    img.alt = name || '이미지';
+    if (title) title.textContent = name || '이미지';
+    if (dl) {
+      dl.href = dlSrc || src || '#';
+      dl.setAttribute('download', name || 'image');
+    }
+    viewer.classList.add('show');
+  }
+
+  function closeChatImageViewer() {
+    var viewer = document.getElementById('chatImgViewer');
+    var img = document.getElementById('chatImgViewerImg');
+    if (viewer) viewer.classList.remove('show');
+    if (img) img.removeAttribute('src');
+  }
+
+  function bindChatImageOpeners(root) {
+    if (!root) return;
+    root.querySelectorAll('[data-view-src]').forEach(function (el) {
+      el.addEventListener('click', function (e) {
+        e.preventDefault();
+        openChatImageViewer(
+          el.getAttribute('data-view-src'),
+          el.getAttribute('data-view-name') || '이미지',
+          el.getAttribute('data-dl-src') || el.getAttribute('data-view-src')
+        );
+      });
+    });
+  }
+
+  function removeChatMessage(id) {
+    if (!id) return;
+    delete chatSeen[id];
+    var log = document.getElementById('chatLog');
+    if (!log) return;
+    var el = log.querySelector('.chat-msg[data-id="' + id + '"]');
+    if (el) el.remove();
+  }
+
+  function buildChatMessageEl(m) {
+    var me = (window.FD_USER && FD_USER.username) || '';
+    var mine = m.username === me;
+    var name = m.displayName || m.username || '사용자';
+    var atts = m.attachments || [];
+    var attHtml = atts.map(function (a) {
+      var base = chatAssetUrl(a.url || ('/api/chat/files/' + a.id));
+      var dl = base + (base.indexOf('?') >= 0 ? '&' : '?') + 'dl=1';
+      var fname = a.originalName || 'file';
+      if (isImageAtt(a)) {
+        return '<button type="button" class="att-img-wrap" data-view-src="' + cxEscapeHtml(base) +
+          '" data-view-name="' + cxEscapeHtml(fname) + '" data-dl-src="' + cxEscapeHtml(dl) +
+          '" title="클릭하여 크게 보기"><img src="' + cxEscapeHtml(base) + '" alt="' + cxEscapeHtml(fname) + '"></button>';
+      }
+      return '<a class="file-link" href="' + dl + '" download="' + cxEscapeHtml(fname) + '">' +
+        cxEscapeHtml(fname) + ' (' + formatBytes(a.sizeBytes) + ') ↓</a>';
+    }).join('');
+    var bodyHtml = renderBodyHtml(m.bodyText);
+    var actions = mine
+      ? '<div class="msg-actions">' +
+          '<button type="button" class="btn-edit-msg" data-edit="' + cxEscapeHtml(m.id) + '">수정</button>' +
+          '<button type="button" class="btn-del-msg" data-del="' + cxEscapeHtml(m.id) + '">🗑 삭제</button>' +
+        '</div>'
+      : '';
+    var div = document.createElement('div');
+    div.className = 'chat-msg' + (mine ? ' me' : '');
+    div.setAttribute('data-id', m.id);
+    div.setAttribute('data-raw-text', m.bodyText || '');
+    div.innerHTML =
+      '<div class="meta">' + cxEscapeHtml(name) + ' · ' + cxEscapeHtml(m.createdAt || '') + '</div>' +
+      (bodyHtml ? '<div class="bubble" data-role="body">' + bodyHtml + '</div>' : '<div class="bubble" data-role="body" style="display:none"></div>') +
+      (attHtml ? '<div class="atts">' + attHtml + '</div>' : '') +
+      actions;
+    bindChatImageOpeners(div);
+    var editBtn = div.querySelector('.btn-edit-msg');
+    if (editBtn) {
+      editBtn.addEventListener('click', function () {
+        startEditChatMessage(div, m.id);
+      });
+    }
+    var delBtn = div.querySelector('.btn-del-msg');
+    if (delBtn) {
+      delBtn.addEventListener('click', function () {
+        deleteOwnChatMessage(delBtn.getAttribute('data-del'));
+      });
+    }
+    return div;
+  }
+
+  function appendChatMessage(m) {
+    if (!m || !m.id) return;
+    if (m.type === 'delete') {
+      removeChatMessage(m.id);
+      return;
+    }
+    if (m.type === 'update' && m.message) {
+      replaceChatMessage(m.message);
+      return;
+    }
+    if (chatSeen[m.id]) {
+      replaceChatMessage(m);
+      return;
+    }
+    chatSeen[m.id] = true;
+    var log = document.getElementById('chatLog');
+    if (!log) return;
+    log.appendChild(buildChatMessageEl(m));
+    log.scrollTop = log.scrollHeight;
+  }
+
+  function replaceChatMessage(m) {
+    if (!m || !m.id) return;
+    chatSeen[m.id] = true;
+    var log = document.getElementById('chatLog');
+    if (!log) return;
+    var old = log.querySelector('.chat-msg[data-id="' + m.id + '"]');
+    var neu = buildChatMessageEl(m);
+    if (old) old.replaceWith(neu);
+    else log.appendChild(neu);
+  }
+
+  function startEditChatMessage(div, id) {
+    if (!div || div.querySelector('.chat-edit-box')) return;
+    var raw = div.getAttribute('data-raw-text') || '';
+    var body = div.querySelector('[data-role="body"]');
+    var actions = div.querySelector('.msg-actions');
+    if (body) body.style.display = 'none';
+    if (actions) actions.style.display = 'none';
+    var box = document.createElement('div');
+    box.className = 'chat-edit-box';
+    box.innerHTML =
+      '<textarea maxlength="4000"></textarea>' +
+      '<div class="chat-edit-actions">' +
+        '<button type="button" class="fd-btn fd-btn-ghost fd-btn-sm" data-act="cancel">취소</button>' +
+        '<button type="button" class="fd-btn fd-btn-primary fd-btn-sm" data-act="save">저장</button>' +
+      '</div>';
+    var ta = box.querySelector('textarea');
+    ta.value = raw;
+    if (actions) actions.insertAdjacentElement('beforebegin', box);
+    else div.appendChild(box);
+    ta.focus();
+    box.querySelector('[data-act="cancel"]').addEventListener('click', function () {
+      box.remove();
+      if (body) {
+        body.style.display = body.innerHTML ? '' : 'none';
+      }
+      if (actions) actions.style.display = '';
+    });
+    box.querySelector('[data-act="save"]').addEventListener('click', function () {
+      saveEditChatMessage(id, ta.value, box, div);
+    });
+  }
+
+  async function saveEditChatMessage(id, text, box, div) {
+    try {
+      var res = await cxApiFetch(CX_CHAT_BASE + '/messages/' + encodeURIComponent(id), {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: text })
+      });
+      var data = await res.json().catch(function () { return {}; });
+      if (!res.ok) {
+        cxToast((data && data.message) || '수정 실패');
+        return;
+      }
+      replaceChatMessage(data);
+      cxToast('수정되었습니다');
+    } catch (e) {
+      cxToast('수정 실패');
+      if (box) box.remove();
+      if (div) {
+        var body = div.querySelector('[data-role="body"]');
+        var actions = div.querySelector('.msg-actions');
+        if (body) body.style.display = body.innerHTML ? '' : 'none';
+        if (actions) actions.style.display = '';
+      }
+    }
+  }
+
+  async function deleteOwnChatMessage(id) {
+    if (!id) return;
+    var ok = await cxConfirm({
+      title: '메시지 삭제',
+      message: '정말로 삭제하시겠습니까?',
+      okText: '확인',
+      cancelText: '취소',
+      danger: true
+    });
+    if (!ok) return;
+    try {
+      var res = await cxApiFetch(CX_CHAT_BASE + '/messages/' + encodeURIComponent(id), {
+        method: 'DELETE'
+      });
+      if (!res.ok) {
+        cxToast('삭제 실패');
+        return;
+      }
+      removeChatMessage(id);
+      cxToast('삭제되었습니다');
+    } catch (e) {
+      cxToast('삭제 실패');
+    }
+  }
+
+  async function loadChatHistory() {
+    var res = await cxApiFetch(CX_CHAT_BASE + '/messages?limit=80');
+    if (!res.ok) throw new Error('history');
+    var list = await res.json();
+    var log = document.getElementById('chatLog');
+    if (log) log.innerHTML = '';
+    chatSeen = {};
+    (list || []).forEach(appendChatMessage);
+    chatHistoryLoaded = true;
+  }
+
+  function disconnectChatWsQuiet() {
+    chatConnected = false;
+    if (chatStomp) {
+      try { chatStomp.disconnect(function () {}); } catch (e) {}
+      chatStomp = null;
+    }
+    if (chatSock) {
+      try { chatSock.close(); } catch (e) {}
+      chatSock = null;
+    }
+  }
+
+  function connectChatWs(force) {
+    if (!force && chatConnected && chatStomp) return;
+    if (typeof SockJS === 'undefined' || typeof Stomp === 'undefined') {
+      setChatStatus('err', '채팅 라이브러리 로드 실패');
+      return;
+    }
+    disconnectChatWsQuiet();
+    setChatStatus('', '연결 중…');
+    try {
+      chatSock = new SockJS((CX_APP_BASE || '') + '/ws-chat');
+      chatStomp = Stomp.over(chatSock);
+      chatStomp.debug = null;
+      chatStomp.connect({}, function () {
+        chatConnected = true;
+        setChatStatus('on', '실시간 연결됨');
+        chatStomp.subscribe('/topic/chat', function (frame) {
+          try {
+            var data = JSON.parse(frame.body);
+            if (data && data.type === 'delete') {
+              removeChatMessage(data.id);
+              return;
+            }
+            if (data && data.type === 'update' && data.message) {
+              replaceChatMessage(data.message);
+              return;
+            }
+            appendChatMessage(data);
+          } catch (e) {}
+        });
+      }, function () {
+        chatConnected = false;
+        setChatStatus('err', '연결 끊김 · 새로고침으로 재연결');
+      });
+    } catch (e) {
+      chatConnected = false;
+      setChatStatus('err', '연결 오류 · 새로고침으로 재연결');
+    }
+  }
+
+  async function ensureChatReady() {
+    if (!chatHistoryLoaded) {
+      try { await loadChatHistory(); }
+      catch (e) { setChatStatus('err', '기록 로드 실패'); }
+    }
+    connectChatWs(false);
+  }
+
+  async function refreshChatConnection() {
+    var btn = document.getElementById('chatRefreshBtn');
+    if (btn) btn.disabled = true;
+    setChatStatus('', '다시 연결 중…');
+    try {
+      await loadChatHistory();
+      connectChatWs(true);
+      cxToast('채팅 연결을 갱신했습니다');
+    } catch (e) {
+      setChatStatus('err', '재연결 실패 · 다시 시도해 주세요');
+      cxToast('채팅 재연결 실패');
+      connectChatWs(true);
+    } finally {
+      if (btn) btn.disabled = false;
+    }
+  }
+
+  function maybeDisconnectChat() {
+    disconnectChatWsQuiet();
+    setChatStatus('', '연결 대기');
+  }
+
+  function renderChatPending() {
+    var box = document.getElementById('chatPending');
+    if (!box) return;
+    if (!chatPending.length) {
+      box.classList.remove('show');
+      box.innerHTML = '';
+      return;
+    }
+    box.classList.add('show');
+    box.innerHTML = chatPending.map(function (p, i) {
+      var preview = p.previewUrl || (p.kind === 'url' ? p.externalUrl : '') ||
+        (p.id && isImageAtt(p) ? chatAssetUrl(p.url || ('/api/chat/files/' + p.id)) : '');
+      var img = preview
+        ? '<img src="' + cxEscapeHtml(preview) + '" alt="">'
+        : '';
+      var label = p.originalName || (p.kind === 'url' ? '이미지 URL' : 'file');
+      return '<span class="chip">' + img +
+        '<span class="chip-name">' + cxEscapeHtml(label) + '</span>' +
+        '<button type="button" data-i="' + i + '" aria-label="첨부 제거">×</button></span>';
+    }).join('');
+    box.querySelectorAll('button[data-i]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var idx = Number(btn.getAttribute('data-i'));
+        var item = chatPending[idx];
+        if (item && item.previewUrl && String(item.previewUrl).indexOf('blob:') === 0) {
+          try { URL.revokeObjectURL(item.previewUrl); } catch (e) {}
+        }
+        chatPending.splice(idx, 1);
+        renderChatPending();
+      });
+    });
+  }
+
+  function addPendingImageUrl(url) {
+    url = String(url || '').trim();
+    if (!isImageUrl(url)) return false;
+    if (chatPending.length >= 5) {
+      cxToast('한 번에 첨부 5개까지 가능합니다');
+      return false;
+    }
+    var dup = chatPending.some(function (p) {
+      return p.kind === 'url' && p.externalUrl === url;
+    });
+    if (dup) return true;
+    chatPending.push({
+      kind: 'url',
+      externalUrl: url,
+      originalName: fileNameFromUrl(url),
+      previewUrl: url,
+      contentType: 'image/*'
+    });
+    renderChatPending();
+    return true;
+  }
+
+  async function uploadChatFile(file) {
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) {
+      cxToast('파일은 최대 5MB까지 가능합니다');
+      return;
+    }
+    if (chatPending.length >= 5) {
+      cxToast('한 번에 첨부 5개까지 가능합니다');
+      return;
+    }
+    var localPreview = null;
+    if (file.type && file.type.indexOf('image/') === 0) {
+      try { localPreview = URL.createObjectURL(file); } catch (e) {}
+    }
+    var fd = new FormData();
+    var fname = file.name || ('paste-' + Date.now() + '.png');
+    fd.append('file', file, fname);
+    setChatStatus(chatConnected ? 'on' : '', '업로드 중…');
+    var res = await cxApiFetch(CX_CHAT_BASE + '/upload', { method: 'POST', body: fd });
+    var data = await res.json();
+    if (!res.ok) {
+      if (localPreview) try { URL.revokeObjectURL(localPreview); } catch (e) {}
+      cxToast((data && data.message) || '업로드 실패');
+      setChatStatus(chatConnected ? 'on' : 'err', chatConnected ? '실시간 연결됨' : '연결 대기');
+      return;
+    }
+    data.kind = 'file';
+    data.previewUrl = localPreview || (isImageAtt(data) ? chatAssetUrl(data.url) : '');
+    chatPending.push(data);
+    renderChatPending();
+    setChatStatus(chatConnected ? 'on' : '', chatConnected ? '실시간 연결됨' : '연결 대기');
+  }
+
+  async function sendChat() {
+    var input = document.getElementById('chatInput');
+    var text = (input && input.value || '').trim();
+    var urlPendings = chatPending.filter(function (p) { return p.kind === 'url' && p.externalUrl; });
+    var filePendings = chatPending.filter(function (p) { return p.kind !== 'url' && p.id; });
+    var ids = filePendings.map(function (p) { return p.id; });
+    if (urlPendings.length) {
+      var urlBlock = urlPendings.map(function (p) { return p.externalUrl; }).join('\n');
+      text = text ? (text + '\n' + urlBlock) : urlBlock;
+    }
+    if (!text && !ids.length) return;
+    var payload = { text: text, attachmentIds: ids };
+    try {
+      if (chatConnected && chatStomp) {
+        chatStomp.send('/app/chat.send', {}, JSON.stringify(payload));
+      } else {
+        var res = await cxApiFetch(CX_CHAT_BASE + '/send', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        if (!res.ok) {
+          var err = await res.json().catch(function () { return {}; });
+          cxToast((err && err.message) || '전송 실패');
+          return;
+        }
+        var msg = await res.json();
+        appendChatMessage(msg);
+      }
+      if (input) input.value = '';
+      chatPending.forEach(function (p) {
+        if (p.previewUrl && String(p.previewUrl).indexOf('blob:') === 0) {
+          try { URL.revokeObjectURL(p.previewUrl); } catch (e) {}
+        }
+      });
+      chatPending = [];
+      renderChatPending();
+    } catch (e) {
+      console.error(e);
+      cxToast('전송 실패');
+    }
+  }
+
+  document.getElementById('wxGpsBtn').addEventListener('click', weatherByGps);
+  document.getElementById('wxRefreshBtn').addEventListener('click', function () {
+    refreshWeather().catch(function () { wxStatus('날씨 갱신 실패'); });
+  });
+  document.getElementById('wxSearchBtn').addEventListener('click', function () {
+    searchWeatherPlace(document.getElementById('wxQuery').value).catch(function () { wxStatus('검색 실패'); });
+  });
+  document.getElementById('wxQuery').addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      searchWeatherPlace(document.getElementById('wxQuery').value).catch(function () { wxStatus('검색 실패'); });
+    }
+  });
+  document.getElementById('chatAttachBtn').addEventListener('click', function () {
+    document.getElementById('chatFile').click();
+  });
+  document.getElementById('chatFile').addEventListener('change', function () {
+    var files = Array.prototype.slice.call(this.files || []);
+    this.value = '';
+    files.forEach(function (f) {
+      uploadChatFile(f).catch(function () { cxToast('업로드 실패'); });
+    });
+  });
+  document.getElementById('chatRefreshBtn').addEventListener('click', function () {
+    refreshChatConnection().catch(function () { cxToast('채팅 재연결 실패'); });
+  });
+  document.getElementById('chatSendBtn').addEventListener('click', function () {
+    sendChat().catch(function () { cxToast('전송 실패'); });
+  });
+  document.getElementById('chatInput').addEventListener('keydown', function (e) {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      sendChat().catch(function () { cxToast('전송 실패'); });
+    }
+  });
+  document.getElementById('chatInput').addEventListener('paste', function (e) {
+    var cd = e.clipboardData;
+    if (!cd) return;
+    var files = [];
+    // files / items 중 하나만 사용 (둘 다 읽으면 동일 이미지가 2번 업로드됨)
+    if (cd.files && cd.files.length) {
+      for (var fi = 0; fi < cd.files.length; fi++) {
+        if (cd.files[fi] && (!cd.files[fi].type || cd.files[fi].type.indexOf('image/') === 0)) {
+          files.push(cd.files[fi]);
+        }
+      }
+    } else if (cd.items) {
+      for (var i = 0; i < cd.items.length; i++) {
+        if (cd.items[i].kind === 'file' && cd.items[i].type && cd.items[i].type.indexOf('image/') === 0) {
+          var blob = cd.items[i].getAsFile();
+          if (blob) files.push(blob);
+        }
+      }
+    }
+    if (files.length) {
+      e.preventDefault();
+      // 동일 클립보드 항목 중복 제거
+      var uniq = [];
+      var seenKey = {};
+      files.forEach(function (f) {
+        var key = (f.type || '') + ':' + (f.size || 0) + ':' + (f.lastModified || 0) + ':' + (f.name || '');
+        if (seenKey[key]) return;
+        seenKey[key] = true;
+        uniq.push(f);
+      });
+      uniq.forEach(function (blob, idx) {
+        var name = 'capture-' + Date.now() + '-' + idx + '.png';
+        var file = (blob.name && String(blob.name).length)
+          ? blob
+          : new File([blob], name, { type: blob.type || 'image/png' });
+        uploadChatFile(file).catch(function () { cxToast('이미지 붙여넣기 실패'); });
+      });
+      return;
+    }
+    var plain = cd.getData('text/plain') || '';
+    var urls = extractImageUrls(plain);
+    if (urls.length) {
+      var onlyUrls = plain.replace(/\s+/g, '') === urls.join('').replace(/\s+/g, '');
+      if (onlyUrls || (urls.length === 1 && plain.trim() === urls[0])) {
+        e.preventDefault();
+        urls.forEach(function (u) { addPendingImageUrl(u); });
+      }
+    }
+  });
+  document.getElementById('chatImgClose').addEventListener('click', closeChatImageViewer);
+  document.getElementById('chatImgViewer').addEventListener('click', function (e) {
+    if (e.target === document.getElementById('chatImgViewer')) closeChatImageViewer();
+  });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') closeChatImageViewer();
+  });
+  document.getElementById('modalClose').addEventListener('click', closePopup);
+  document.getElementById('modalBg').addEventListener('click', function (e) {
+    if (e.target === document.getElementById('modalBg')) closePopup();
+  });
+
+  document.addEventListener('DOMContentLoaded', async function () {
+    try {
+      var me = await cxRequireAuth();
+      ownerUser = (me && me.username) || '';
+      var now = new Date();
+      viewYear = now.getFullYear();
+      viewMonth = now.getMonth();
+      remYear = now.getFullYear();
+      remMonth = now.getMonth();
+      remSelected = todayYmd();
+      renderRemCalendar();
+      renderRemDayList();
+      ownerUser = await fdMountUserPicker('userBar', OWNER_KEY, async function (u) {
+        ownerUser = u;
+        await loadData();
+      }) || ownerUser;
+      await Promise.all([
+        loadData().catch(console.error),
+        loadRemindMonth(),
+        initWeather().catch(function () { wxStatus('날씨를 불러오지 못했습니다'); })
+      ]);
+      syncRemindWeatherEqualHeight();
+      window.addEventListener('resize', function () {
+        syncRemindWeatherEqualHeight();
+        if (chartMass) chartMass.resize();
+        if (chartScore) chartScore.resize();
+      });
+    } catch (e) { console.error(e); }
+  });
+})();
+</script>
+</body>
+</html>
