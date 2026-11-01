@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>로그인 · FlowDesk</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/theme.css">
+<style>
+  body { min-height: 100vh; display: flex; flex-direction: column; }
+  .login-wrap { flex: 1; display: flex; align-items: center; justify-content: center; padding: 40px 20px; }
+  .login-card {
+    width: 100%; max-width: 400px; background: var(--surface);
+    border-radius: var(--radius); box-shadow: var(--shadow); border: 1px solid var(--border);
+    padding: 28px 26px 24px;
+  }
+  .login-title { font-size: 16px; font-weight: 700; margin-bottom: 6px; }
+  .login-desc { font-size: 12px; color: var(--text-ter); margin-bottom: 22px; }
+  .login-field { margin-bottom: 16px; }
+  .err {
+    display: none; margin-top: 12px; padding: 10px 12px; background: var(--danger-light);
+    color: var(--danger); border-radius: 8px; font-size: 12px; font-weight: 500;
+  }
+  .err.show { display: block; }
+  .login-footer { text-align: center; font-size: 11px; color: var(--text-ter); padding: 16px; }
+  .fd-header-inner { max-width: 420px; margin: 0 auto; }
+  .btn-full { width: 100%; margin-top: 8px; }
+</style>
+</head>
+<body>
+<header class="fd-header">
+  <div class="fd-header-inner">
+    <div class="fd-header-label">MY WORKSPACE</div>
+    <div class="fd-header-title">FlowDesk</div>
+    <div class="fd-header-sub">업무와 루틴을 한곳에서</div>
+  </div>
+</header>
+
+<div class="login-wrap">
+  <div class="login-card">
+    <div class="login-title">로그인</div>
+    <div class="login-desc">아이디와 비밀번호를 입력해주세요. (접속 시 기기·위치 정보가 기록됩니다)</div>
+    <form id="loginForm">
+      <div class="login-field fd-field">
+        <label>아이디 <span class="req">*</span></label>
+        <input type="text" id="username" autocomplete="username" autofocus>
+      </div>
+      <div class="login-field fd-field">
+        <label>비밀번호 <span class="req">*</span></label>
+        <input type="password" id="password" autocomplete="current-password">
+      </div>
+      <button type="submit" class="fd-btn fd-btn-primary btn-full" id="btnLogin">로그인</button>
+      <div class="err" id="errBox"></div>
+    </form>
+  </div>
+</div>
+<div class="login-footer">FlowDesk</div>
+
+<script>
+(function () {
+  var path = window.location.pathname.replace(/\/login\.html$/i, '').replace(/\/$/, '');
+  var AUTH_BASE = (path || '') + '/api/auth';
+  var HOME = (path || '') + '/home.html';
+
+  fetch(AUTH_BASE + '/me', { credentials: 'same-origin' })
+    .then(function (r) { if (r.ok) location.replace(HOME); })
+    .catch(function () {});
+
+  function getGeo() {
+    return new Promise(function (resolve) {
+      if (!navigator.geolocation) { resolve({ gpsStatus: '미지원' }); return; }
+      var done = false;
+      var timer = setTimeout(function () { if (!done) { done = true; resolve({ gpsStatus: '타임아웃' }); } }, 4000);
+      navigator.geolocation.getCurrentPosition(
+        function (pos) {
+          if (done) return; done = true; clearTimeout(timer);
+          resolve({ latitude: pos.coords.latitude, longitude: pos.coords.longitude, accuracy: pos.coords.accuracy, gpsStatus: 'OK' });
+        },
+        function (err) {
+          if (done) return; done = true; clearTimeout(timer);
+          var status = '거부/실패';
+          if (err && err.code === 1) status = '권한거부';
+          if (err && err.code === 2) status = '위치불가';
+          if (err && err.code === 3) status = '타임아웃';
+          resolve({ gpsStatus: status });
+        },
+        { enableHighAccuracy: false, timeout: 3500, maximumAge: 60000 }
+      );
+    });
+  }
+
+  var form = document.getElementById('loginForm');
+  var errBox = document.getElementById('errBox');
+  var btn = document.getElementById('btnLogin');
+
+  form.addEventListener('submit', function (e) {
+    e.preventDefault();
+    errBox.classList.remove('show');
+    var username = document.getElementById('username').value.trim();
+    var password = document.getElementById('password').value;
+    if (!username || !password) {
+      errBox.textContent = '아이디와 비밀번호를 입력해주세요.';
+      errBox.classList.add('show');
+      return;
+    }
+    btn.disabled = true;
+    btn.textContent = '접속 정보 확인 중…';
+    getGeo().then(function (geo) {
+      return fetch(AUTH_BASE + '/login', {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          username: username, password: password,
+          latitude: geo.latitude, longitude: geo.longitude,
+          accuracy: geo.accuracy, gpsStatus: geo.gpsStatus
+        })
+      });
+    }).then(function (r) {
+      return r.json().then(function (body) {
+        if (!r.ok || !body.ok) throw new Error((body && body.message) || '로그인 실패');
+        location.replace(HOME);
+      });
+    }).catch(function (err) {
+      errBox.textContent = err.message || '로그인 실패';
+      errBox.classList.add('show');
+      btn.disabled = false;
+      btn.textContent = '로그인';
+    });
+  });
+})();
+</script>
+</body>
+</html>

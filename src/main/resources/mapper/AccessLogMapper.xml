@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+  "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="kr.flowdesk.mapper.AccessLogMapper">
+
+  <resultMap id="AccessLogMap" type="kr.flowdesk.domain.AccessLog">
+    <id property="id" column="id"/>
+    <result property="accessedAt" column="accessed_at"/>
+    <result property="username" column="username"/>
+    <result property="eventType" column="event_type"/>
+    <result property="pagePath" column="page_path"/>
+    <result property="menuNm" column="menu_nm"/>
+    <result property="deviceType" column="device_type"/>
+    <result property="userAgent" column="user_agent"/>
+    <result property="ipAddress" column="ip_address"/>
+    <result property="latitude" column="latitude"/>
+    <result property="longitude" column="longitude"/>
+    <result property="gpsAccuracyM" column="gps_accuracy_m"/>
+    <result property="gpsStatus" column="gps_status"/>
+  </resultMap>
+
+  <sql id="cols">
+    id, accessed_at, username, event_type, page_path, menu_nm, device_type, user_agent,
+    ip_address, latitude, longitude, gps_accuracy_m, gps_status
+  </sql>
+
+  <select id="selectAll" resultMap="AccessLogMap">
+    SELECT <include refid="cols"/>
+    FROM access_logs
+    ORDER BY accessed_at DESC, id DESC
+  </select>
+
+  <select id="selectByFilter" resultMap="AccessLogMap">
+    SELECT <include refid="cols"/>
+    FROM access_logs
+    <where>
+      <if test="from != null and from != ''">
+        AND accessed_at &gt;= #{from}
+      </if>
+      <if test="to != null and to != ''">
+        AND accessed_at &lt; #{to}
+      </if>
+      <if test="username != null and username != ''">
+        AND username = #{username}
+      </if>
+      <if test="eventType != null and eventType != ''">
+        AND event_type = #{eventType}
+      </if>
+    </where>
+    ORDER BY accessed_at DESC, id DESC
+  </select>
+
+  <insert id="insert">
+    INSERT INTO access_logs (
+      id, accessed_at, username, event_type, page_path, menu_nm, device_type, user_agent,
+      ip_address, latitude, longitude, gps_accuracy_m, gps_status
+    ) VALUES (
+      #{id}, #{accessedAt}, #{username}, #{eventType}, #{pagePath}, #{menuNm}, #{deviceType},
+      #{userAgent}, #{ipAddress}, #{latitude}, #{longitude}, #{gpsAccuracyM}, #{gpsStatus}
+    )
+  </insert>
+
+  <delete id="deleteByIds">
+    DELETE FROM access_logs
+    WHERE id IN
+    <foreach collection="ids" item="id" open="(" separator="," close=")">
+      #{id}
+    </foreach>
+  </delete>
+
+  <delete id="deleteAll">
+    DELETE FROM access_logs
+  </delete>
+
+  <select id="countAll" resultType="int">
+    SELECT COUNT(*) FROM access_logs
+  </select>
+</mapper>

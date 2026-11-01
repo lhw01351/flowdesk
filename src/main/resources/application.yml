@@ -1,0 +1,71 @@
+server:
+  port: 8080
+  address: 0.0.0.0
+  servlet:
+    encoding:
+      charset: UTF-8
+      force: true
+    session:
+      timeout: 2h
+      cookie:
+        http-only: true
+        same-site: lax
+
+spring:
+  application:
+    name: flowdesk
+  servlet:
+    multipart:
+      max-file-size: 5MB
+      max-request-size: 6MB
+  datasource:
+    url: jdbc:h2:file:./data/flowdesk;MODE=MySQL;DATABASE_TO_LOWER=TRUE;AUTO_SERVER=TRUE
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+  sql:
+    init:
+      mode: always
+      schema-locations: classpath:schema.sql
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+
+mybatis:
+  mapper-locations: classpath:mapper/*.xml
+  configuration:
+    map-underscore-to-camel-case: true
+
+logging:
+  level:
+    kr.flowdesk: INFO
+
+flowdesk:
+  # 업로드는 절대경로 권장. 상대경로(./data/...)는 Tomcat 기동 cwd에 따라
+  # DB 메타만 남고 파일이 404(깨진 미리보기)가 될 수 있음.
+  # FLOWDESK_DATA_DIR 미설정 시 ~/flowdesk-data 사용.
+  chat:
+    upload-dir: ${FLOWDESK_DATA_DIR:${user.home}/flowdesk-data}/chat-uploads
+    max-file-bytes: 5242880
+  profile:
+    upload-dir: ${FLOWDESK_DATA_DIR:${user.home}/flowdesk-data}/profile-images
+    max-file-bytes: 2097152
+
+# 시드 참고용 (실제 계정은 app_users + AuthDataBootstrap)
+# 권한: 01 전체관리자 / 02 일반사용자
+cx:
+  auth:
+    users:
+      - username: admin
+        password: cxadmin123
+        role: ADMIN
+      - username: hwlee
+        password: hwlee1234
+        role: ADMIN
+      - username: guest
+        password: guest1234
+        role: GUEST
+      - username: hani
+        password: hani1234
+        role: ADMIN

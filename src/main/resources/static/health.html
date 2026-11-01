@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>인바디 케어 · FlowDesk</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/theme.css">
+<link rel="stylesheet" href="css/app-shell.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+<style>
+  .form-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; }
+  .form-grid .span-4 { grid-column: span 4; }
+  .form-actions { display:flex; gap:8px; margin-top:18px; flex-wrap:wrap; }
+  #tab-charts .fd-grid-2 { align-items: start; max-width: 100%; }
+  #tab-charts .fd-card { min-width: 0; max-width: 100%; overflow: hidden; }
+  #tab-charts .fd-chart-wrap { height: 300px; max-width: 100%; }
+  @media (max-width:900px) {
+    .form-grid { grid-template-columns:repeat(2,1fr); }
+    .form-grid .span-4 { grid-column: span 2; }
+    #tab-charts .fd-chart-wrap { height: 200px; }
+  }
+  @media (max-width:560px) {
+    .form-grid { grid-template-columns:1fr; }
+    .form-grid .span-4 { grid-column: span 1; }
+    #tab-charts .fd-chart-wrap { height: 180px; }
+  }
+</style>
+</head>
+<body data-page="health">
+<header class="fd-header">
+  <div class="fd-header-label">INBODY CARE</div>
+  <div class="fd-header-title">인바디 케어</div>
+  <div class="fd-header-sub" id="headerSub">측정값을 기록하고 추이를 차트로 확인합니다</div>
+</header>
+
+<div class="fd-content">
+  <div class="fd-toolbar" id="userBar" style="margin-bottom:8px"></div>
+  <div class="fd-toolbar" id="periodBar"></div>
+  <div class="fd-tabs">
+    <button type="button" class="fd-tab-btn active" data-tab="charts">추이 차트</button>
+    <button type="button" class="fd-tab-btn" data-tab="form">측정 입력</button>
+    <button type="button" class="fd-tab-btn" data-tab="list">기록 목록</button>
+  </div>
+
+  <div class="fd-tab-pane active" id="tab-charts">
+    <div class="fd-grid-2">
+      <div class="fd-card">
+        <div class="fd-card-title">체중 · 골격근 · 체지방</div>
+        <div class="fd-card-desc">kg 단위 추이</div>
+        <div class="fd-chart-wrap" id="wrapComp"><canvas id="chartComp"></canvas></div>
+      </div>
+      <div class="fd-card">
+        <div class="fd-card-title">BMI · 체지방률 · 발달점수</div>
+        <div class="fd-card-desc">진단 지표 추이</div>
+        <div class="fd-chart-wrap" id="wrapDiag"><canvas id="chartDiag"></canvas></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="fd-tab-pane" id="tab-form">
+    <div class="fd-card">
+      <div class="fd-card-title" id="formTitle">인바디 측정 등록</div>
+      <div class="fd-card-desc">InBody 결과지 기준으로 입력하세요. 측정일·체중은 필수입니다.</div>
+      <form id="inbodyForm">
+        <input type="hidden" id="editId">
+        <div class="form-grid">
+          <div class="fd-field"><label>측정일 <span class="req">*</span></label><input type="date" id="measuredAt" required></div>
+          <div class="fd-field"><label>키 (cm)</label><input type="number" step="0.1" id="heightCm" value="178"></div>
+          <div class="fd-field"><label>나이</label><input type="number" id="age"></div>
+          <div class="fd-field"><label>성별</label><select id="gender"><option value="남">남</option><option value="여">여</option></select></div>
+          <div class="fd-field"><label>체중 kg <span class="req">*</span></label><input type="number" step="0.1" id="weightKg" required></div>
+          <div class="fd-field"><label>골격근량 kg</label><input type="number" step="0.1" id="skeletalMuscleKg"></div>
+          <div class="fd-field"><label>체지방량 kg</label><input type="number" step="0.1" id="bodyFatMassKg"></div>
+          <div class="fd-field"><label>제지방량 kg</label><input type="number" step="0.1" id="fatFreeMassKg"></div>
+          <div class="fd-field"><label>체수분 kg</label><input type="number" step="0.1" id="totalBodyWaterKg"></div>
+          <div class="fd-field"><label>단백질 kg</label><input type="number" step="0.1" id="proteinKg"></div>
+          <div class="fd-field"><label>무기질 kg</label><input type="number" step="0.01" id="mineralKg"></div>
+          <div class="fd-field"><label>BMI</label><input type="number" step="0.1" id="bmi"></div>
+          <div class="fd-field"><label>체지방률 %</label><input type="number" step="0.1" id="percentBodyFat"></div>
+          <div class="fd-field"><label>복부지방률</label><input type="number" step="0.01" id="waistHipRatio"></div>
+          <div class="fd-field"><label>기초대사량 kcal</label><input type="number" id="bmrKcal"></div>
+          <div class="fd-field"><label>내장지방 Lv</label><input type="number" id="visceralFatLevel"></div>
+          <div class="fd-field"><label>신체발달점수</label><input type="number" id="fitnessScore"></div>
+          <div class="fd-field"><label>근육조절 kg</label><input type="number" step="0.1" id="muscleControlKg" value="0"></div>
+          <div class="fd-field"><label>지방조절 kg</label><input type="number" step="0.1" id="fatControlKg"></div>
+          <div class="fd-field span-4"><label>메모</label><textarea id="note" rows="2" placeholder="예: S Fitness 측정"></textarea></div>
+        </div>
+        <div class="form-actions">
+          <button type="submit" class="fd-btn fd-btn-primary" id="btnSave">저장</button>
+          <button type="button" class="fd-btn fd-btn-ghost" id="btnReset">초기화</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="fd-tab-pane" id="tab-list">
+    <div class="fd-card">
+      <div class="fd-card-title">측정 기록</div>
+      <div class="fd-card-desc">선택한 기간의 기록 (측정일 기준)</div>
+      <div style="overflow-x:auto">
+        <table class="fd-table">
+          <thead>
+            <tr>
+              <th>측정일</th><th>체중</th><th>골격근</th><th>체지방</th><th>체지방률</th>
+              <th>BMI</th><th>내장지방</th><th>점수</th><th></th>
+            </tr>
+          </thead>
+          <tbody id="listBody"></tbody>
+        </table>
+      </div>
+      <div id="listPager"></div>
+    </div>
+  </div>
+</div>
+<div class="fd-toast" id="toast"></div>
+
+<script src="js/app-shell.js"></script>
+<script>
+(function () {
+  var allRecords = [], records = [], chartComp = null, chartDiag = null;
+  var RANGE_KEY = 'fd-inbody-range', mode = '15', from = '', to = '';
+  var OWNER_KEY = 'fd-inbody-owner', ownerUser = '';
+  var PAGE_SIZE = 15, listPage = 1;
+  var numIds = ['heightCm','age','weightKg','skeletalMuscleKg','bodyFatMassKg','fatFreeMassKg','totalBodyWaterKg','proteinKg','mineralKg','bmi','percentBodyFat','waistHipRatio','bmrKcal','visceralFatLevel','fitnessScore','muscleControlKg','fatControlKg'];
+
+  function toast(msg) {
+    var el = document.getElementById('toast');
+    el.textContent = msg; el.classList.add('show');
+    setTimeout(function () { el.classList.remove('show'); }, 2200);
+  }
+  function num(id) { var v = document.getElementById(id).value; return (v === '' || v == null) ? null : Number(v); }
+  function setVal(id, v) { document.getElementById(id).value = (v == null || v === '') ? '' : v; }
+  function fmt(n, d) { return n == null ? '-' : Number(n).toFixed(d == null ? 1 : d); }
+  function default15() { var r = cxLastNDays(15); from = r.from; to = r.to; mode = '15'; }
+  function loadSavedRange() {
+    try {
+      var o = JSON.parse(localStorage.getItem(RANGE_KEY) || 'null');
+      if (!o) { default15(); return; }
+      if (o.mode === 'custom' && o.from && o.to) { mode = 'custom'; from = o.from; to = o.to; }
+      else if (o.mode === '30') { mode = '30'; var a = cxLastNDays(30); from = a.from; to = a.to; }
+      else if (o.mode === 'all') { mode = 'all'; from = ''; to = ''; }
+      else default15();
+    } catch (e) { default15(); }
+  }
+  function saveRange() { localStorage.setItem(RANGE_KEY, JSON.stringify({ mode: mode, from: from, to: to })); }
+  function applyFilter() {
+    records = mode === 'all' ? allRecords.slice() : allRecords.filter(function (r) { return cxInRange(r.measuredAt, from, to); });
+    listPage = 1;
+    document.getElementById('headerSub').textContent =
+      (mode === 'all' ? '전체' : (from + ' ~ ' + to)) + ' · ' + records.length + '건 표시 (전체 ' + allRecords.length + '건)';
+  }
+  function periodBtn(m, label) {
+    return '<button type="button" class="fd-period-btn' + (mode === m ? ' active' : '') + '" data-mode="' + m + '">' + label + '</button>';
+  }
+  function renderPeriodBar() {
+    var html = '<span class="fd-control-label">기간</span>' + periodBtn('15', '최근 15일') + periodBtn('30', '최근 30일') + periodBtn('all', '전체') + periodBtn('custom', '직접 입력');
+    if (mode === 'custom') {
+      html += '<div class="fd-custom-range"><input type="date" id="fromDate" value="' + from + '"><span>~</span><input type="date" id="toDate" value="' + to + '"><button type="button" class="fd-period-btn" id="btnApplyRange">적용</button></div>';
+    }
+    document.getElementById('periodBar').innerHTML = html;
+    document.querySelectorAll('#periodBar [data-mode]').forEach(function (el) {
+      el.addEventListener('click', function () {
+        mode = el.getAttribute('data-mode');
+        if (mode === '15') { var a = cxLastNDays(15); from = a.from; to = a.to; }
+        else if (mode === '30') { var b = cxLastNDays(30); from = b.from; to = b.to; }
+        else if (mode === 'all') { from = ''; to = ''; }
+        else if (mode === 'custom' && (!from || !to)) { var c = cxLastNDays(15); from = c.from; to = c.to; }
+        saveRange(); renderPeriodBar(); applyFilter(); renderList(); renderCharts();
+      });
+    });
+    var apply = document.getElementById('btnApplyRange');
+    if (apply) apply.addEventListener('click', function () {
+      from = document.getElementById('fromDate').value; to = document.getElementById('toDate').value;
+      if (!from || !to) return; mode = 'custom'; saveRange(); applyFilter(); renderList(); renderCharts();
+    });
+  }
+  function switchTab(name) {
+    document.querySelectorAll('.fd-tab-btn').forEach(function (b) { b.classList.toggle('active', b.getAttribute('data-tab') === name); });
+    document.querySelectorAll('.fd-tab-pane').forEach(function (p) { p.classList.toggle('active', p.id === 'tab-' + name); });
+    if (name === 'charts') {
+      renderCharts();
+      setTimeout(function () {
+        if (chartComp) chartComp.resize();
+        if (chartDiag) chartDiag.resize();
+      }, 50);
+    }
+  }
+  function resetForm() {
+    document.getElementById('editId').value = '';
+    document.getElementById('formTitle').textContent = '인바디 측정 등록';
+    document.getElementById('inbodyForm').reset();
+    setVal('measuredAt', cxToday());
+    setVal('heightCm', 178); setVal('gender', '남'); setVal('muscleControlKg', 0);
+    document.getElementById('btnSave').textContent = '저장';
+  }
+  function fillForm(r) {
+    document.getElementById('editId').value = r.id;
+    document.getElementById('formTitle').textContent = '인바디 측정 수정';
+    setVal('measuredAt', r.measuredAt); setVal('heightCm', r.heightCm); setVal('age', r.age); setVal('gender', r.gender || '남');
+    numIds.forEach(function (id) { if (id !== 'age') setVal(id, r[id]); });
+    setVal('age', r.age); setVal('note', r.note || '');
+    document.getElementById('btnSave').textContent = '수정 저장';
+    switchTab('form');
+  }
+  function collect() {
+    var body = {
+      measuredAt: document.getElementById('measuredAt').value,
+      gender: document.getElementById('gender').value,
+      note: document.getElementById('note').value,
+      createUser: ownerUser || (FD_USER && FD_USER.username)
+    };
+    numIds.forEach(function (id) { body[id] = num(id); });
+    return body;
+  }
+  async function load() {
+    var res = await cxApiFetch(fdInbodyUrl('', ownerUser));
+    if (!res.ok) throw new Error('load fail');
+    allRecords = await res.json();
+    applyFilter(); renderList(); renderCharts();
+  }
+  function renderList() {
+    var body = document.getElementById('listBody');
+    var rows = records.slice().reverse();
+    if (!rows.length) {
+      body.innerHTML = '<tr><td colspan="9" style="text-align:center;color:#9B9DB0;padding:28px">해당 기간 기록이 없습니다.</td></tr>';
+      fdRenderPager('listPager', 1, 1, null, { total: 0 });
+      return;
+    }
+    var slice = fdPageSlice(rows, listPage, PAGE_SIZE);
+    listPage = slice.page;
+    body.innerHTML = slice.items.map(function (r) {
+      return '<tr><td>' + cxEscapeHtml(r.measuredAt) + '</td><td>' + fmt(r.weightKg) + '</td><td>' + fmt(r.skeletalMuscleKg) + '</td><td>' +
+        fmt(r.bodyFatMassKg) + '</td><td>' + fmt(r.percentBodyFat) + '%</td><td>' + fmt(r.bmi) + '</td><td>' +
+        (r.visceralFatLevel != null ? r.visceralFatLevel : '-') + '</td><td>' + (r.fitnessScore != null ? r.fitnessScore : '-') +
+        '</td><td style="white-space:nowrap"><button type="button" class="fd-btn fd-btn-ghost fd-btn-sm" data-edit="' +
+        cxEscapeHtml(r.id) + '">수정</button> <button type="button" class="fd-btn fd-btn-danger fd-btn-sm" data-del="' +
+        cxEscapeHtml(r.id) + '">삭제</button></td></tr>';
+    }).join('');
+    fdRenderPager('listPager', slice.page, slice.pages, function (p) {
+      listPage = p;
+      renderList();
+      body.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, { total: slice.total, size: PAGE_SIZE });
+  }
+  function renderCharts() {
+    var wrap1 = document.getElementById('wrapComp');
+    var wrap2 = document.getElementById('wrapDiag');
+    if (!records.length) {
+      if (chartComp) { chartComp.destroy(); chartComp = null; }
+      if (chartDiag) { chartDiag.destroy(); chartDiag = null; }
+      wrap1.innerHTML = '<div class="fd-chart-empty">해당 기간 데이터 없음</div>';
+      wrap2.innerHTML = '<div class="fd-chart-empty">해당 기간 데이터 없음</div>';
+      return;
+    }
+    if (chartComp) { chartComp.destroy(); chartComp = null; }
+    if (chartDiag) { chartDiag.destroy(); chartDiag = null; }
+    wrap1.innerHTML = '<canvas id="chartComp"></canvas>';
+    wrap2.innerHTML = '<canvas id="chartDiag"></canvas>';
+    var labels = records.map(function (r) { return r.measuredAt; });
+    var opt = {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { position: 'bottom', labels: { boxWidth: 14, padding: 16, font: { size: 13 } } } },
+      scales: { y: { ticks: { font: { size: 12 } }, grid: { color: '#F0F2F8' } }, x: { ticks: { font: { size: 12 } }, grid: { display: false } } }
+    };
+    chartComp = new Chart(document.getElementById('chartComp').getContext('2d'), {
+      type: 'line',
+      data: { labels: labels, datasets: [
+        { label: '체중', data: records.map(function (r) { return r.weightKg; }), borderColor: '#5C5FCE', tension: .35, fill: false },
+        { label: '골격근', data: records.map(function (r) { return r.skeletalMuscleKg; }), borderColor: '#7DD3C0', tension: .35, fill: false },
+        { label: '체지방', data: records.map(function (r) { return r.bodyFatMassKg; }), borderColor: '#F47B7B', tension: .35, fill: false }
+      ]},
+      options: opt
+    });
+    chartDiag = new Chart(document.getElementById('chartDiag').getContext('2d'), {
+      type: 'line',
+      data: { labels: labels, datasets: [
+        { label: 'BMI', data: records.map(function (r) { return r.bmi; }), borderColor: '#9B8FE0', tension: .35, yAxisID: 'y' },
+        { label: '체지방률%', data: records.map(function (r) { return r.percentBodyFat; }), borderColor: '#F5A8C8', tension: .35, yAxisID: 'y' },
+        { label: '발달점수', data: records.map(function (r) { return r.fitnessScore; }), borderColor: '#F5C45E', tension: .35, yAxisID: 'y1' }
+      ]},
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { position: 'bottom', labels: { boxWidth: 14, padding: 16, font: { size: 13 } } } },
+        scales: {
+          y: { position: 'left', ticks: { font: { size: 12 } }, grid: { color: '#F0F2F8' } },
+          y1: { position: 'right', ticks: { font: { size: 12 } }, grid: { display: false } },
+          x: { ticks: { font: { size: 12 } }, grid: { display: false } }
+        }
+      }
+    });
+  }
+
+  document.querySelectorAll('.fd-tab-btn').forEach(function (btn) {
+    btn.addEventListener('click', function () { switchTab(btn.getAttribute('data-tab')); });
+  });
+  document.getElementById('btnReset').addEventListener('click', resetForm);
+  document.getElementById('inbodyForm').addEventListener('submit', async function (e) {
+    e.preventDefault();
+    var body = collect(), editId = document.getElementById('editId').value;
+    try {
+      var res = editId
+        ? await cxApiFetch(CX_INBODY_BASE + '/' + encodeURIComponent(editId), { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+        : await cxApiFetch(CX_INBODY_BASE, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+      if (!res.ok) { var err = await res.json().catch(function () { return {}; }); throw new Error(err.message || '저장 실패'); }
+      toast(editId ? '수정 완료' : '등록 완료'); resetForm(); await load(); switchTab('list');
+    } catch (err) { toast(err.message || '저장 실패'); }
+  });
+  document.getElementById('listBody').addEventListener('click', async function (e) {
+    var edit = e.target.getAttribute('data-edit'), del = e.target.getAttribute('data-del');
+    if (edit) { var found = allRecords.find(function (r) { return r.id === edit; }); if (found) fillForm(found); return; }
+    if (del) {
+      if (!confirm('이 기록을 삭제할까요?')) return;
+      var res = await cxApiFetch(CX_INBODY_BASE + '/' + encodeURIComponent(del), { method: 'DELETE' });
+      if (!res.ok && res.status !== 204) { toast('삭제 실패'); return; }
+      toast('삭제 완료'); await load();
+    }
+  });
+  document.addEventListener('DOMContentLoaded', async function () {
+    try {
+      var me = await cxRequireAuth();
+      ownerUser = (me && me.username) || '';
+      ownerUser = await fdMountUserPicker('userBar', OWNER_KEY, async function (u) {
+        ownerUser = u;
+        resetForm();
+        await load();
+      }) || ownerUser;
+      loadSavedRange(); renderPeriodBar(); resetForm(); await load();
+    } catch (e) { console.error(e); }
+  });
+})();
+</script>
+</body>
+</html>

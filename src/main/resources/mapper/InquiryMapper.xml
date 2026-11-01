@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+  "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="kr.flowdesk.mapper.InquiryMapper">
+
+  <resultMap id="InquiryMap" type="kr.flowdesk.domain.Inquiry">
+    <id property="id" column="id"/>
+    <result property="direction" column="direction"/>
+    <result property="channel" column="channel"/>
+    <result property="status" column="status"/>
+    <result property="category" column="category"/>
+    <result property="module" column="module"/>
+    <result property="inboundAt" column="inbound_at"/>
+    <result property="firstResponseAt" column="first_response_at"/>
+    <result property="resolvedAt" column="resolved_at"/>
+    <result property="customer" column="customer"/>
+    <result property="reviewer" column="reviewer"/>
+    <result property="note" column="note"/>
+    <result property="linkedId" column="linked_id"/>
+    <result property="createUser" column="create_user"/>
+  </resultMap>
+
+  <sql id="cols">
+    id, direction, channel, status, category, module,
+    inbound_at, first_response_at, resolved_at,
+    customer, reviewer, note, linked_id, create_user
+  </sql>
+
+  <select id="selectByCreateUser" resultMap="InquiryMap">
+    SELECT <include refid="cols"/>
+      FROM inquiries
+     WHERE create_user = #{createUser}
+     ORDER BY COALESCE(resolved_at, inbound_at) DESC, id DESC
+  </select>
+
+  <select id="selectById" resultMap="InquiryMap">
+    SELECT <include refid="cols"/>
+      FROM inquiries
+     WHERE id = #{id}
+  </select>
+
+  <select id="countByCreateUser" resultType="int">
+    SELECT COUNT(*) FROM inquiries WHERE create_user = #{createUser}
+  </select>
+
+  <insert id="insert">
+    INSERT INTO inquiries (
+      id, direction, channel, status, category, module,
+      inbound_at, first_response_at, resolved_at,
+      customer, reviewer, note, linked_id, create_user
+    ) VALUES (
+      #{id}, #{direction}, #{channel}, #{status}, #{category}, #{module},
+      #{inboundAt}, #{firstResponseAt}, #{resolvedAt},
+      #{customer}, #{reviewer}, #{note}, #{linkedId}, #{createUser}
+    )
+  </insert>
+
+  <update id="update">
+    UPDATE inquiries SET
+      direction = #{direction},
+      channel = #{channel},
+      status = #{status},
+      category = #{category},
+      module = #{module},
+      inbound_at = #{inboundAt},
+      first_response_at = #{firstResponseAt},
+      resolved_at = #{resolvedAt},
+      customer = #{customer},
+      reviewer = #{reviewer},
+      note = #{note},
+      linked_id = #{linkedId},
+      create_user = #{createUser}
+    WHERE id = #{id}
+  </update>
+
+  <delete id="deleteById">
+    DELETE FROM inquiries WHERE id = #{id}
+  </delete>
+
+  <delete id="deleteByCreateUser">
+    DELETE FROM inquiries WHERE create_user = #{createUser}
+  </delete>
+
+  <update id="backfillCreateUser">
+    UPDATE inquiries
+       SET create_user = #{createUser}
+     WHERE create_user IS NULL OR create_user = ''
+  </update>
+
+</mapper>

@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>리마인드 · FlowDesk</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/theme.css">
+<link rel="stylesheet" href="css/app-shell.css">
+<style>
+  .remind-layout {
+    display: grid;
+    grid-template-columns: 1fr 1.1fr;
+    gap: 16px;
+    align-items: start;
+    max-width: 100%;
+  }
+  .remind-layout > * { min-width: 0; max-width: 100%; }
+  @media (max-width: 900px) {
+    .remind-layout { grid-template-columns: 1fr; }
+  }
+  .cal-head { display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:12px; }
+  .cal-head strong { font-size:16px; font-weight:800; }
+  .cal-nav {
+    border:1px solid var(--border); background:#fff; border-radius:8px;
+    padding:6px 10px; cursor:pointer; font-family:inherit; font-weight:700; font-size:13px;
+  }
+  .cal-grid { display:grid; grid-template-columns:repeat(7,1fr); gap:4px; }
+  .cal-dow { text-align:center; font-size:11px; font-weight:700; color:var(--text-ter); padding:6px 0; }
+  .cal-day {
+    aspect-ratio:1; border:1px solid transparent; border-radius:10px;
+    background:transparent; font-family:inherit; font-size:13px; font-weight:600;
+    color:var(--text-sec); cursor:default; position:relative;
+  }
+  .cal-day.other { opacity:.28; }
+  .cal-day.has {
+    background:var(--primary-light); color:var(--primary-dark);
+    border-color:rgba(92,95,206,.25); cursor:pointer; font-weight:800;
+  }
+  .cal-day.selected { background:var(--primary); color:#fff; border-color:var(--primary); }
+  .cal-day .dot {
+    position:absolute; bottom:5px; left:50%; transform:translateX(-50%);
+    width:5px; height:5px; border-radius:50%; background:var(--primary);
+  }
+  .cal-day.selected .dot { background:#fff; }
+  .form-actions { display:flex; gap:8px; margin-top:14px; flex-wrap:wrap; }
+  .remind-item {
+    border:1px solid var(--border-light); border-radius:10px; padding:12px 14px; margin-bottom:8px;
+    background:var(--surface-alt);
+  }
+  .remind-item.done { opacity:.65; }
+  .remind-item .ttl { font-weight:800; font-size:14px; }
+  .remind-item .meta { font-size:12px; color:var(--text-ter); margin-top:4px; }
+  .remind-item .acts { margin-top:8px; display:flex; gap:6px; flex-wrap:wrap; }
+</style>
+</head>
+<body data-page="remind">
+<header class="fd-header">
+  <div class="fd-header-label">REMIND</div>
+  <div class="fd-header-title">리마인드</div>
+  <div class="fd-header-sub" id="headerSub">일정 리마인드를 등록하고 캘린더로 확인합니다</div>
+</header>
+
+<div class="fd-content">
+  <div class="remind-layout">
+    <div class="fd-card">
+      <div class="fd-card-title">캘린더</div>
+      <div class="fd-card-desc">날짜를 클릭하면 해당일 목록·등록 폼에 반영됩니다</div>
+      <div class="cal-head">
+        <button type="button" class="cal-nav" id="calPrev">‹</button>
+        <strong id="calTitle">-</strong>
+        <button type="button" class="cal-nav" id="calNext">›</button>
+      </div>
+      <div class="cal-grid" id="calDows"></div>
+      <div class="cal-grid" id="calDays"></div>
+    </div>
+
+    <div>
+      <div class="fd-card">
+        <div class="fd-card-title" id="formTitle">리마인드 등록</div>
+        <div class="fd-card-desc" id="formDesc">선택한 날짜에 새 일정을 추가합니다</div>
+        <form id="remindForm">
+          <input type="hidden" id="editId">
+          <div class="fd-field"><label>날짜 <span class="req">*</span></label><input type="date" id="remindDate" required></div>
+          <div class="fd-field"><label>제목 <span class="req">*</span></label><input type="text" id="title" maxlength="200" required></div>
+          <div class="fd-field"><label>내용</label><textarea id="content" rows="3" placeholder="메모"></textarea></div>
+          <div class="fd-field">
+            <label><input type="checkbox" id="doneYn"> 완료</label>
+          </div>
+          <div class="form-actions">
+            <button type="submit" class="fd-btn fd-btn-primary" id="btnSave">저장</button>
+            <button type="button" class="fd-btn fd-btn-ghost" id="btnReset">초기화</button>
+          </div>
+        </form>
+      </div>
+      <div class="fd-card">
+        <div class="fd-card-title">선택일 목록</div>
+        <div class="fd-card-desc" id="dayDesc">-</div>
+        <div id="dayList"></div>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="fd-toast" id="toast"></div>
+
+<script src="js/app-shell.js"></script>
+<script>
+(function () {
+  var viewYear, viewMonth, selectedDate = '', byDate = {}, allList = [];
+
+  function pad2(n) { return String(n).padStart(2, '0'); }
+  function ymd(y, m, d) { return y + '-' + pad2(m + 1) + '-' + pad2(d); }
+  function toast(msg) {
+    var t = document.getElementById('toast');
+    t.textContent = msg; t.classList.add('show');
+    setTimeout(function () { t.classList.remove('show'); }, 1800);
+  }
+  function indexByDate() {
+    byDate = {};
+    allList.forEach(function (r) {
+      var key = String(r.remindDate || '').substring(0, 10);
+      if (!key) return;
+      if (!byDate[key]) byDate[key] = [];
+      byDate[key].push(r);
+    });
+  }
+
+  function renderCalendar() {
+    document.getElementById('calTitle').textContent = viewYear + '년 ' + (viewMonth + 1) + '월';
+    var dows = ['일','월','화','수','목','금','토'];
+    document.getElementById('calDows').innerHTML = dows.map(function (d) {
+      return '<div class="cal-dow">' + d + '</div>';
+    }).join('');
+    var first = new Date(viewYear, viewMonth, 1);
+    var startDow = first.getDay();
+    var daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
+    var prevDays = new Date(viewYear, viewMonth, 0).getDate();
+    var cells = [], i;
+    for (i = 0; i < startDow; i++) {
+      cells.push({ day: prevDays - startDow + i + 1, other: true, date: null });
+    }
+    for (i = 1; i <= daysInMonth; i++) {
+      var ds = ymd(viewYear, viewMonth, i);
+      cells.push({ day: i, other: false, date: ds, has: !!(byDate[ds] && byDate[ds].length) });
+    }
+    while (cells.length % 7 !== 0) {
+      var last = cells[cells.length - 1];
+      cells.push({ day: (last.other ? last.day : 0) + 1, other: true, date: null });
+    }
+    document.getElementById('calDays').innerHTML = cells.map(function (c) {
+      var cls = 'cal-day' + (c.other ? ' other' : '') + (c.has ? ' has' : '') +
+        (c.date && c.date === selectedDate ? ' selected' : '');
+      var attrs = c.date ? ' data-date="' + c.date + '"' : ' disabled';
+      return '<button type="button" class="' + cls + '"' + attrs + '>' + c.day +
+        (c.has ? '<span class="dot"></span>' : '') + '</button>';
+    }).join('');
+    document.querySelectorAll('#calDays [data-date]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        selectedDate = btn.getAttribute('data-date');
+        document.getElementById('remindDate').value = selectedDate;
+        renderCalendar();
+        renderDayList();
+      });
+    });
+  }
+
+  function renderDayList() {
+    var box = document.getElementById('dayList');
+    var desc = document.getElementById('dayDesc');
+    if (!selectedDate) {
+      desc.textContent = '날짜를 선택하세요';
+      box.innerHTML = '<div class="fd-empty">선택된 날짜 없음</div>';
+      return;
+    }
+    var list = byDate[selectedDate] || [];
+    desc.textContent = selectedDate + ' · ' + list.length + '건';
+    if (!list.length) {
+      box.innerHTML = '<div class="fd-empty">등록된 리마인드가 없습니다.</div>';
+      return;
+    }
+    box.innerHTML = list.map(function (r) {
+      return '<div class="remind-item' + (r.doneYn === 'Y' ? ' done' : '') + '">' +
+        '<div class="ttl">' + cxEscapeHtml(r.title) + '</div>' +
+        '<div class="meta">' + (r.doneYn === 'Y' ? '완료 · ' : '') + cxEscapeHtml(r.content || '') + '</div>' +
+        '<div class="acts">' +
+          '<button type="button" class="fd-btn fd-btn-ghost" data-edit="' + r.id + '">수정</button>' +
+          '<button type="button" class="fd-btn fd-btn-ghost" data-del="' + r.id + '">삭제</button>' +
+        '</div></div>';
+    }).join('');
+    box.querySelectorAll('[data-edit]').forEach(function (b) {
+      b.addEventListener('click', function () { fillForm(b.getAttribute('data-edit')); });
+    });
+    box.querySelectorAll('[data-del]').forEach(function (b) {
+      b.addEventListener('click', async function () {
+        if (!confirm('삭제할까요?')) return;
+        var res = await cxApiFetch(CX_APP_BASE + '/api/reminders/' + b.getAttribute('data-del'), { method: 'DELETE' });
+        if (!res.ok) { toast('삭제 실패'); return; }
+        toast('삭제됨');
+        await loadMonth();
+      });
+    });
+  }
+
+  function fillForm(id) {
+    var r = allList.find(function (x) { return x.id === id; });
+    if (!r) return;
+    document.getElementById('editId').value = r.id;
+    document.getElementById('remindDate').value = String(r.remindDate).substring(0, 10);
+    document.getElementById('title').value = r.title || '';
+    document.getElementById('content').value = r.content || '';
+    document.getElementById('doneYn').checked = r.doneYn === 'Y';
+    document.getElementById('formTitle').textContent = '리마인드 수정';
+    document.getElementById('formDesc').textContent = '기존 일정을 수정합니다';
+  }
+
+  function resetForm() {
+    document.getElementById('editId').value = '';
+    document.getElementById('title').value = '';
+    document.getElementById('content').value = '';
+    document.getElementById('doneYn').checked = false;
+    if (selectedDate) document.getElementById('remindDate').value = selectedDate;
+    document.getElementById('formTitle').textContent = '리마인드 등록';
+    document.getElementById('formDesc').textContent = '선택한 날짜에 새 일정을 추가합니다';
+  }
+
+  async function loadMonth() {
+    var res = await cxApiFetch(CX_APP_BASE + '/api/reminders?year=' + viewYear + '&month=' + (viewMonth + 1));
+    if (!res.ok) throw new Error('load fail');
+    var data = await res.json();
+    allList = data.list || [];
+    indexByDate();
+    renderCalendar();
+    renderDayList();
+  }
+
+  function shiftMonth(delta) {
+    viewMonth += delta;
+    if (viewMonth < 0) { viewMonth = 11; viewYear--; }
+    if (viewMonth > 11) { viewMonth = 0; viewYear++; }
+    selectedDate = '';
+    resetForm();
+    loadMonth().catch(console.error);
+  }
+
+  document.getElementById('calPrev').addEventListener('click', function () { shiftMonth(-1); });
+  document.getElementById('calNext').addEventListener('click', function () { shiftMonth(1); });
+  document.getElementById('btnReset').addEventListener('click', resetForm);
+  document.getElementById('remindForm').addEventListener('submit', async function (e) {
+    e.preventDefault();
+    var id = document.getElementById('editId').value;
+    var body = {
+      remindDate: document.getElementById('remindDate').value,
+      title: document.getElementById('title').value,
+      content: document.getElementById('content').value,
+      doneYn: document.getElementById('doneYn').checked ? 'Y' : 'N'
+    };
+    var url = CX_APP_BASE + '/api/reminders' + (id ? '/' + id : '');
+    var res = await cxApiFetch(url, {
+      method: id ? 'PUT' : 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    if (!res.ok) {
+      var err = await res.json().catch(function () { return {}; });
+      toast(err.message || '저장 실패');
+      return;
+    }
+    toast('저장됨');
+    selectedDate = body.remindDate;
+    var p = selectedDate.split('-');
+    if (p.length === 3) { viewYear = +p[0]; viewMonth = +p[1] - 1; }
+    resetForm();
+    document.getElementById('remindDate').value = selectedDate;
+    await loadMonth();
+  });
+
+  document.addEventListener('DOMContentLoaded', async function () {
+    try {
+      await cxRequireAuth();
+      var now = new Date();
+      viewYear = now.getFullYear();
+      viewMonth = now.getMonth();
+      selectedDate = ymd(viewYear, viewMonth, now.getDate());
+      document.getElementById('remindDate').value = selectedDate;
+      await loadMonth();
+    } catch (e) { console.error(e); }
+  });
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,47 @@
+# build
+target/
+*.war
+*.class
+
+# local data / uploads
+data/
+**/chat-uploads/
+**/profile-images/
+
+# logs & temp
+*.log
+*.tmp
+*.swp
+.DS_Store
+
+# IDE
+.idea/
+*.iml
+.classpath
+.project
+.settings/
+.vscode/
+*.code-workspace
+
+# secrets / local env (never commit)
+.env
+.env.*
+!.env.example
+**/setenv.sh
+**/setenv.local.sh
+secrets/
+*.pem
+*.key
+
+# local-only ops scripts (contain demo credentials / machine paths)
+scripts/_*.sh
+scripts/_*.ps1
+scripts/_*.py
+scripts/WslPortBridge/*.exe
+scripts/WslPortBridge/bridge.log
+scripts/WslPortBridge/watchdog.log
+scripts/WslPortBridge/*.log
+
+# OS
+Thumbs.db
+desktop.ini

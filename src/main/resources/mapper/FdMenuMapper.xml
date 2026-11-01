@@ -1,0 +1,139 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+  "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="kr.flowdesk.mapper.FdMenuMapper">
+
+  <resultMap id="FdMenuMap" type="kr.flowdesk.domain.FdMenu">
+    <id property="menuId" column="menu_id"/>
+    <result property="menuKey" column="menu_key"/>
+    <result property="menuNm" column="menu_nm"/>
+    <result property="pageUrl" column="page_url"/>
+    <result property="apiPrefix" column="api_prefix"/>
+    <result property="upMenuId" column="up_menu_id"/>
+    <result property="menuLevel" column="menu_level"/>
+    <result property="sortOrder" column="sort_order"/>
+    <result property="realOrder" column="real_order"/>
+    <result property="isLeaf" column="is_leaf"/>
+    <result property="useYn" column="use_yn"/>
+    <result property="restrictedYn" column="restricted_yn"/>
+    <result property="icon" column="icon"/>
+    <result property="linkUrl" column="link_url"/>
+    <result property="newUrl" column="new_url"/>
+    <result property="path" column="path"/>
+    <result property="sourceType" column="source_type"/>
+    <result property="guideComment" column="guide_comment"/>
+    <result property="content" column="content"/>
+    <result property="param" column="param"/>
+    <result property="manualUrl" column="manual_url"/>
+    <result property="createDt" column="create_dt"/>
+    <result property="updateDt" column="update_dt"/>
+    <result property="deleteDt" column="delete_dt"/>
+    <result property="note" column="note"/>
+  </resultMap>
+
+  <sql id="menuCols">
+    menu_id, menu_key, menu_nm, page_url, api_prefix, up_menu_id, menu_level,
+    sort_order, real_order, is_leaf, use_yn, restricted_yn, icon, link_url, new_url,
+    path, source_type, guide_comment, content, param, manual_url,
+    create_dt, update_dt, delete_dt, note
+  </sql>
+
+  <select id="selectAll" resultMap="FdMenuMap">
+    SELECT <include refid="menuCols"/>
+    FROM fd_menu
+    WHERE delete_dt IS NULL
+    ORDER BY real_order ASC, sort_order ASC, menu_id ASC
+  </select>
+
+  <select id="selectById" resultMap="FdMenuMap">
+    SELECT <include refid="menuCols"/>
+    FROM fd_menu WHERE menu_id = #{menuId}
+  </select>
+
+  <select id="selectByKey" resultMap="FdMenuMap">
+    SELECT <include refid="menuCols"/>
+    FROM fd_menu WHERE menu_key = #{menuKey} AND delete_dt IS NULL
+  </select>
+
+  <select id="selectByAuthCd" resultMap="FdMenuMap">
+    SELECT m.menu_id, m.menu_key, m.menu_nm, m.page_url, m.api_prefix, m.up_menu_id, m.menu_level,
+           m.sort_order, m.real_order, m.is_leaf, m.use_yn, m.restricted_yn, m.icon, m.link_url, m.new_url,
+           m.path, m.source_type, m.guide_comment, m.content, m.param, m.manual_url,
+           m.create_dt, m.update_dt, m.delete_dt, m.note
+    FROM fd_menu m
+    INNER JOIN fd_menu_auth a ON a.menu_id = m.menu_id AND a.auth_cd = #{authCd}
+    WHERE m.use_yn = 'Y' AND m.delete_dt IS NULL
+    ORDER BY m.real_order ASC, m.sort_order ASC
+  </select>
+
+  <select id="countAll" resultType="int">
+    SELECT COUNT(*) FROM fd_menu WHERE delete_dt IS NULL
+  </select>
+
+  <insert id="insert">
+    INSERT INTO fd_menu (
+      menu_id, menu_key, menu_nm, page_url, api_prefix, up_menu_id, menu_level,
+      sort_order, real_order, is_leaf, use_yn, restricted_yn, icon, link_url, new_url,
+      path, source_type, guide_comment, content, param, manual_url,
+      create_dt, update_dt, delete_dt, note
+    ) VALUES (
+      #{menuId}, #{menuKey}, #{menuNm}, #{pageUrl}, #{apiPrefix}, #{upMenuId}, #{menuLevel},
+      #{sortOrder}, #{realOrder}, #{isLeaf}, #{useYn}, #{restrictedYn}, #{icon}, #{linkUrl}, #{newUrl},
+      #{path}, #{sourceType}, #{guideComment}, #{content}, #{param}, #{manualUrl},
+      #{createDt}, #{updateDt}, #{deleteDt}, #{note}
+    )
+  </insert>
+
+  <update id="update">
+    UPDATE fd_menu SET
+      menu_key = #{menuKey},
+      menu_nm = #{menuNm},
+      page_url = #{pageUrl},
+      api_prefix = #{apiPrefix},
+      up_menu_id = #{upMenuId},
+      menu_level = #{menuLevel},
+      sort_order = #{sortOrder},
+      real_order = #{realOrder},
+      is_leaf = #{isLeaf},
+      use_yn = #{useYn},
+      restricted_yn = #{restrictedYn},
+      icon = #{icon},
+      link_url = #{linkUrl},
+      new_url = #{newUrl},
+      path = #{path},
+      source_type = #{sourceType},
+      guide_comment = #{guideComment},
+      content = #{content},
+      param = #{param},
+      manual_url = #{manualUrl},
+      update_dt = #{updateDt},
+      delete_dt = #{deleteDt},
+      note = #{note}
+    WHERE menu_id = #{menuId}
+  </update>
+
+  <delete id="deleteById">
+    DELETE FROM fd_menu WHERE menu_id = #{menuId}
+  </delete>
+
+  <select id="selectAuthCdsByMenuId" resultType="string">
+    SELECT auth_cd FROM fd_menu_auth WHERE menu_id = #{menuId} ORDER BY auth_cd
+  </select>
+
+  <delete id="deleteAuthByMenuId">
+    DELETE FROM fd_menu_auth WHERE menu_id = #{menuId}
+  </delete>
+
+  <delete id="deleteAuthByAuthCd">
+    DELETE FROM fd_menu_auth WHERE auth_cd = #{authCd}
+  </delete>
+
+  <insert id="insertMenuAuth">
+    INSERT INTO fd_menu_auth (auth_cd, menu_id, create_dt)
+    VALUES (#{authCd}, #{menuId}, #{createDt})
+  </insert>
+
+  <select id="countMenuAuth" resultType="int">
+    SELECT COUNT(*) FROM fd_menu_auth
+  </select>
+</mapper>

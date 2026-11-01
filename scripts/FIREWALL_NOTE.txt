@@ -1,0 +1,2 @@
+관리자 PowerShell에서 실행:
+  powershell -ExecutionPolicy Bypass -File d:\ispark_prj\flowdesk\scripts\open-firewall.ps1

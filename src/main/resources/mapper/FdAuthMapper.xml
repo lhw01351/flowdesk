@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+  "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="kr.flowdesk.mapper.FdAuthMapper">
+
+  <resultMap id="FdAuthMap" type="kr.flowdesk.domain.FdAuth">
+    <id property="authCd" column="auth_cd"/>
+    <result property="authNm" column="auth_nm"/>
+    <result property="sortOrder" column="sort_order"/>
+    <result property="useYn" column="use_yn"/>
+    <result property="createDt" column="create_dt"/>
+    <result property="note" column="note"/>
+  </resultMap>
+
+  <select id="selectAll" resultMap="FdAuthMap">
+    SELECT auth_cd, auth_nm, sort_order, use_yn, create_dt, note
+    FROM fd_auth
+    ORDER BY sort_order ASC, auth_cd ASC
+  </select>
+
+  <select id="selectByCd" resultMap="FdAuthMap">
+    SELECT auth_cd, auth_nm, sort_order, use_yn, create_dt, note
+    FROM fd_auth WHERE auth_cd = #{authCd}
+  </select>
+
+  <select id="countAll" resultType="int">
+    SELECT COUNT(*) FROM fd_auth
+  </select>
+
+  <insert id="insert">
+    INSERT INTO fd_auth (auth_cd, auth_nm, sort_order, use_yn, create_dt, note)
+    VALUES (#{authCd}, #{authNm}, #{sortOrder}, #{useYn}, #{createDt}, #{note})
+  </insert>
+
+  <update id="update">
+    UPDATE fd_auth SET
+      auth_nm = #{authNm},
+      sort_order = #{sortOrder},
+      use_yn = #{useYn},
+      note = #{note}
+    WHERE auth_cd = #{authCd}
+  </update>
+
+  <delete id="deleteByCd">
+    DELETE FROM fd_auth WHERE auth_cd = #{authCd}
+  </delete>
+</mapper>
