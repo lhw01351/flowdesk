@@ -375,11 +375,49 @@
   color: #6b7287;
   word-break: break-all;
 }
-.app-user-drop-session {
+.app-user-drop-session-row {
   margin-top: 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.app-user-drop-session {
+  flex: 1;
+  min-width: 0;
   font-size: 11px;
   color: #4b5568;
   font-weight: 600;
+}
+.app-user-session-refresh {
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  border: 1px solid rgba(20,22,36,0.12);
+  background: #f7f8fb;
+  color: #3b4252;
+  border-radius: 8px;
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+  font-family: inherit;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.app-user-session-refresh:hover {
+  background: #eef1f7;
+  border-color: rgba(20,22,36,0.18);
+}
+.app-user-session-refresh:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+.app-user-session-refresh.spinning {
+  animation: fd-session-spin 0.7s linear infinite;
+}
+@keyframes fd-session-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 }
 .app-user-logout {
   width: 100%;

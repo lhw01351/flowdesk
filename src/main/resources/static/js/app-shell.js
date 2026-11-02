@@ -572,11 +572,14 @@
           '<div class="app-user-drop-head">' +
             '<div class="app-user-drop-name" id="appUserDropName">' + cxEscapeHtml(name) + '</div>' +
             '<div class="app-user-drop-sub" id="appUserDropSub">' + cxEscapeHtml(sub) + '</div>' +
-            '<div class="app-user-drop-session" id="appUserDropSession">' +
-              cxEscapeHtml(remain) +
-              (me && me.sessionMaxInactiveSec
-                ? ' · ' + cxEscapeHtml(formatSessionMax(me.sessionMaxInactiveSec))
-                : '') +
+            '<div class="app-user-drop-session-row">' +
+              '<div class="app-user-drop-session" id="appUserDropSession">' +
+                cxEscapeHtml(remain) +
+                (me && me.sessionMaxInactiveSec
+                  ? ' · ' + cxEscapeHtml(formatSessionMax(me.sessionMaxInactiveSec))
+                  : '') +
+              '</div>' +
+              '<button type="button" class="app-user-session-refresh" id="shellSessionRefresh" title="세션 연장" aria-label="세션 연장">↻</button>' +
             '</div>' +
           '</div>' +
           '<button type="button" class="app-user-logout" id="shellLogoutBtn">로그아웃</button>' +
@@ -590,6 +593,7 @@
     var btn = document.getElementById('appUserBtn');
     var drop = document.getElementById('appUserDrop');
     var logoutBtn = document.getElementById('shellLogoutBtn');
+    var refreshBtn = document.getElementById('shellSessionRefresh');
     if (!area || !btn || !drop) return;
 
     var sessionEndsAt = Date.now() + Math.max(0, (me && me.sessionRemainingSec) || 0) * 1000;
@@ -606,6 +610,53 @@
       }
       if (remain <= 0) {
         location.replace(BASE + '/login.html');
+      }
+    }
+
+    function applyMe(next) {
+      if (!next || !next.ok) return;
+      window.FD_USER = next;
+      sessionEndsAt = Date.now() + Math.max(0, next.sessionRemainingSec || 0) * 1000;
+      maxSec = next.sessionMaxInactiveSec || maxSec;
+      var nameEl = document.getElementById('appUserName');
+      var dropName = document.getElementById('appUserDropName');
+      var dropSub = document.getElementById('appUserDropSub');
+      var avatar = document.getElementById('appUserAvatar');
+      var nm = next.displayName || next.username || '';
+      var sub = next.username || '';
+      if (next.authCd) sub += (sub ? ' · ' : '') + next.authCd;
+      if (nameEl) nameEl.textContent = nm;
+      if (dropName) dropName.textContent = nm;
+      if (dropSub) dropSub.textContent = sub;
+      if (avatar) {
+        var src = avatarSrc(next);
+        avatar.innerHTML = src
+          ? '<img class="app-user-avatar-img" src="' + cxEscapeHtml(src) + '?t=' + Date.now() + '" alt="">'
+          : '<span class="app-user-avatar-letter">' + cxEscapeHtml(initialFromName(next)) + '</span>';
+      }
+      renderSession();
+    }
+
+    async function refreshSession(opts) {
+      var spin = !!(opts && opts.spin);
+      if (spin && refreshBtn) {
+        refreshBtn.classList.add('spinning');
+        refreshBtn.disabled = true;
+      }
+      try {
+        var res = await fetch(window.CX_AUTH_BASE + '/me', { credentials: 'same-origin' });
+        if (res.status === 401) {
+          location.replace(BASE + '/login.html');
+          return;
+        }
+        if (!res.ok) return;
+        applyMe(await res.json());
+      } catch (err) {
+      } finally {
+        if (refreshBtn) {
+          refreshBtn.classList.remove('spinning');
+          refreshBtn.disabled = false;
+        }
       }
     }
 
@@ -628,43 +679,17 @@
     if (logoutBtn) logoutBtn.addEventListener('click', window.cxLogout);
     var sidebarLogout = document.getElementById('shellSidebarLogout');
     if (sidebarLogout) sidebarLogout.addEventListener('click', window.cxLogout);
+    if (refreshBtn) {
+      refreshBtn.addEventListener('click', function (e) {
+        e.stopPropagation();
+        refreshSession({ spin: true });
+      });
+    }
 
     renderSession();
     setInterval(renderSession, 30000);
-
-    // 주기적으로 세션·아바타 동기화 (활동 시 남은 시간 갱신)
-    setInterval(async function () {
-      try {
-        var res = await fetch(window.CX_AUTH_BASE + '/me', { credentials: 'same-origin' });
-        if (res.status === 401) {
-          location.replace(BASE + '/login.html');
-          return;
-        }
-        if (!res.ok) return;
-        var next = await res.json();
-        if (!next || !next.ok) return;
-        window.FD_USER = next;
-        sessionEndsAt = Date.now() + Math.max(0, next.sessionRemainingSec || 0) * 1000;
-        maxSec = next.sessionMaxInactiveSec || maxSec;
-        var nameEl = document.getElementById('appUserName');
-        var dropName = document.getElementById('appUserDropName');
-        var dropSub = document.getElementById('appUserDropSub');
-        var avatar = document.getElementById('appUserAvatar');
-        var nm = next.displayName || next.username || '';
-        var sub = next.username || '';
-        if (next.authCd) sub += (sub ? ' · ' : '') + next.authCd;
-        if (nameEl) nameEl.textContent = nm;
-        if (dropName) dropName.textContent = nm;
-        if (dropSub) dropSub.textContent = sub;
-        if (avatar) {
-          var src = avatarSrc(next);
-          avatar.innerHTML = src
-            ? '<img class="app-user-avatar-img" src="' + cxEscapeHtml(src) + '?t=' + Date.now() + '" alt="">'
-            : '<span class="app-user-avatar-letter">' + cxEscapeHtml(initialFromName(next)) + '</span>';
-        }
-        renderSession();
-      } catch (err) {}
-    }, 60000);
+    // 주기적으로 세션·아바타 동기화 (요청이 lastAccessed 를 갱신)
+    setInterval(function () { refreshSession({ spin: false }); }, 60000);
   }
 
   function bindNavToggles(nav) {
