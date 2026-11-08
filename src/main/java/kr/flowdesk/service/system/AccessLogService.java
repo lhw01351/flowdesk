@@ -116,6 +116,7 @@ public class AccessLogService {
     if (eventType != null) {
       String ev = eventType.trim().toUpperCase();
       if ("LOGIN".equals(ev)) return "로그인";
+      if ("LOGIN_FAIL".equals(ev)) return "로그인 실패";
       if ("LOGOUT".equals(ev)) return "로그아웃";
       if ("LOGIN_AS".equals(ev)) return "대리 로그인";
     }

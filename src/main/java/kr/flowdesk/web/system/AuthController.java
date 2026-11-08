@@ -5,6 +5,7 @@ import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpSession;
+import kr.flowdesk.config.LoginRateLimiter;
 import kr.flowdesk.domain.AppUser;
 import kr.flowdesk.service.system.AccessLogService;
 import kr.flowdesk.service.system.AppUserService;
@@ -42,14 +43,17 @@ public class AuthController {
   private final AppUserService appUserService;
   private final AccessLogService accessLogService;
   private final MenuAccessService menuAccessService;
+  private final LoginRateLimiter loginRateLimiter;
 
   public AuthController(
       AppUserService appUserService,
       AccessLogService accessLogService,
-      MenuAccessService menuAccessService) {
+      MenuAccessService menuAccessService,
+      LoginRateLimiter loginRateLimiter) {
     this.appUserService = appUserService;
     this.accessLogService = accessLogService;
     this.menuAccessService = menuAccessService;
+    this.loginRateLimiter = loginRateLimiter;
   }
 
   @PostMapping("/login")
@@ -57,8 +61,14 @@ public class AuthController {
       @RequestBody Map<String, Object> body, HttpSession session, HttpServletRequest request) {
     String id = body.get("username") == null ? "" : String.valueOf(body.get("username")).trim();
     String pw = body.get("password") == null ? "" : String.valueOf(body.get("password"));
+    String clientIp = clientIp(request);
 
     Map<String, Object> res = new HashMap<>();
+    if (loginRateLimiter.isBlocked(clientIp)) {
+      res.put("ok", false);
+      res.put("message", "로그인 시도가 너무 많습니다. 잠시 후 다시 시도해주세요.");
+      return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS).body(res);
+    }
     if (id.isEmpty() || pw.isEmpty()) {
       res.put("ok", false);
       res.put("message", "아이디와 비밀번호를 입력해주세요.");
@@ -72,10 +82,17 @@ public class AuthController {
     // 로그인은 MySQL(app_users)만 사용. YAML 계정 폴백 없음.
     AppUser dbUser = appUserService.authenticate(id, pw);
     if (dbUser == null) {
+      loginRateLimiter.onFailure(clientIp);
+      try {
+        accessLogService.record(
+            id, "LOGIN_FAIL", "/login.html", "로그인 실패", null, null, null, null, request);
+      } catch (Exception ignored) {
+      }
       res.put("ok", false);
       res.put("message", "아이디 또는 비밀번호가 올바르지 않습니다.");
       return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(res);
     }
+    loginRateLimiter.onSuccess(clientIp);
     id = dbUser.getUsername();
     authCd = dbUser.getAuthCd() == null || dbUser.getAuthCd().isEmpty()
         ? FdAuthService.AUTH_USER : dbUser.getAuthCd();
@@ -219,5 +236,15 @@ public class AuthController {
     } catch (Exception e) {
       return null;
     }
+  }
+
+  private static String clientIp(HttpServletRequest request) {
+    if (request == null) return "";
+    String xff = request.getHeader("X-Forwarded-For");
+    if (xff != null && !xff.isEmpty()) {
+      return xff.split(",")[0].trim();
+    }
+    String addr = request.getRemoteAddr();
+    return addr == null ? "" : addr;
   }
 }

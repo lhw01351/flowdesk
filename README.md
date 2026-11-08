@@ -92,14 +92,16 @@ cp /mnt/d/ispark_prj/flowdesk/target/flowdesk.war ~/tomcat/webapps/
 
 ## 문서
 
-- [포트폴리오](docs/PORTFOLIO.md) · [개요](docs/OVERVIEW.md) · [변경 요약](docs/CHANGELOG.md)
-- [배포](docs/DEPLOY.md) · [MySQL](docs/MYSQL.md) · [환경변수](docs/ENV.md) · [CI/CD](docs/CI_CD.md)
+- [포트폴리오](docs/PORTFOLIO.md) · [개요](docs/OVERVIEW.md) · [작업 이력](docs/WORK_HISTORY.md) · [변경 요약](docs/CHANGELOG.md)
+- [배포](docs/DEPLOY.md) · [서비스 기동](docs/OPS_SERVICE.md) · [MySQL](docs/MYSQL.md) · [환경변수](docs/ENV.md)
+- [CI/CD](docs/CI_CD.md) · [보안 점검](docs/SECURITY_AUDIT.md)
 
 ## 보안
 
 - CSP, `X-Frame-Options`, `X-Content-Type-Options` (`SecurityHeadersFilter`)
 - 저장 시 sanitize / 화면 `cxEscapeHtml`
 - 세션 쿠키 `HttpOnly`, `SameSite=Lax`
+- 로그인 실패 로그 · IP 레이트 리밋 · 스캐너 경로 404 ([SECURITY_AUDIT.md](docs/SECURITY_AUDIT.md))
 
 ## 프로젝트 메타
 

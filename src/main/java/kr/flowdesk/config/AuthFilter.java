@@ -52,7 +52,12 @@ public class AuthFilter extends OncePerRequestFilter {
         response.getWriter().write("{\"ok\":false,\"message\":\"로그인이 필요합니다.\"}");
         return;
       }
-      response.sendRedirect(ctx + "/login.html");
+      // 알려진 앱 페이지만 로그인으로 유도. 스캐너 경로(/.env, *.php 등)는 404
+      if (isKnownAppPage(path)) {
+        response.sendRedirect(ctx + "/login.html");
+        return;
+      }
+      response.sendError(HttpServletResponse.SC_NOT_FOUND);
       return;
     }
 
@@ -131,6 +136,19 @@ public class AuthFilter extends OncePerRequestFilter {
         || path.endsWith(".woff2") || path.endsWith(".map")) {
       return true;
     }
+    return false;
+  }
+
+  /** 로그인 유도가 자연스러운 FlowDesk 화면만 */
+  private boolean isKnownAppPage(String path) {
+    if ("/".equals(path) || "/home.html".equals(path)) return true;
+    if ("/index.html".equals(path) || "/health.html".equals(path) || "/remind.html".equals(path)) {
+      return true;
+    }
+    if ("/access.html".equals(path) || "/users.html".equals(path) || "/menus.html".equals(path)) {
+      return true;
+    }
+    if ("/chat-files.html".equals(path)) return true;
     return false;
   }
 }
