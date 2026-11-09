@@ -23,15 +23,14 @@
   window.FD_REMINDERS_BASE = BASE + '/api/reminders';
   window.FD_USER = null;
 
-  /** 타인 데이터 대상 선택 가능 — 전체관리자(01). 포폴용 guest 제외 */
+  /** 타인 데이터 대상 선택 가능 — 권한 01 */
   window.fdCanPickOwner = function () {
     var me = window.FD_USER;
     if (!me || !me.username) return false;
-    if (String(me.username).toLowerCase() === 'guest') return false;
     return me.authCd === '01';
   };
 
-  /** API URL에 ?user= 대상 붙이기. auth 01만 타인 지정 (guest 제외) */
+  /** API URL에 ?user= 대상 붙이기. 권한 01만 타인 지정 */
   window.fdWithOwner = function (baseUrl, path, ownerUser) {
     var url = (baseUrl || '') + (path || '');
     var me = window.FD_USER;

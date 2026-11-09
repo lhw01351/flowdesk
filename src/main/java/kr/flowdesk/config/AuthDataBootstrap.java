@@ -167,7 +167,8 @@ public class AuthDataBootstrap implements ApplicationRunner {
     // 표시명·권한 보정 (비밀번호 변경 없음)
     patchUser("admin", "관리자", FdAuthService.AUTH_ADMIN);
     patchUser("hwlee", "이현욱", FdAuthService.AUTH_ADMIN);
-    patchUser("guest", "손님", FdAuthService.AUTH_USER);
+    // 표시명만 보정. 권한은 DB(회원 관리) 값을 유지 — 계정명으로 강제하지 않음
+    patchUser("guest", "손님", null);
     patchUser("hani", "김하니", FdAuthService.AUTH_ADMIN);
 
     // 포폴용 게스트 비번 동기화 (기본 guest — 공개 데모)
@@ -226,7 +227,7 @@ public class AuthDataBootstrap implements ApplicationRunner {
     AppUser patch = new AppUser();
     patch.setUsername(u.getUsername());
     patch.setDisplayName(display);
-    patch.setAuthCd(authCd);
+    patch.setAuthCd(authCd != null ? authCd : u.getAuthCd());
     patch.setNote(u.getNote());
     if (display != null && !display.equals(u.getDisplayName())) dirty = true;
     if (authCd != null && !authCd.equals(u.getAuthCd())) dirty = true;

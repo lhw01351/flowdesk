@@ -260,15 +260,8 @@ public class InquiryController {
     return actor.equals(record.getCreateUser());
   }
 
-  /**
-   * 타인 문의 조회/대리등록 가능 여부.
-   * 전체관리자(01)만 허용. 포폴용 guest 계정은 권한코드와 무관하게 본인만.
-   */
+  /** 타인 문의 조회/대리등록 — 권한 01 */
   private boolean canSelectOtherOwners(HttpSession session) {
-    String actor = AuthController.usernameOf(session);
-    if (actor != null && "guest".equalsIgnoreCase(actor.trim())) {
-      return false;
-    }
     return FdAuthService.AUTH_ADMIN.equals(AuthController.authCdOf(session));
   }
 

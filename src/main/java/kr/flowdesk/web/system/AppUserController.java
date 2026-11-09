@@ -27,7 +27,7 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
 /**
- * 회원 등록/관리 — admin·hwlee 전용 (AuthFilter isManager)
+ * 회원 등록/관리 — 권한 01 (AuthFilter isManager)
  */
 @RestController
 @RequestMapping("/api/users")

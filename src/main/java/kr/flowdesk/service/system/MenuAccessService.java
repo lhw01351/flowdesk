@@ -1,8 +1,6 @@
 package kr.flowdesk.service.system;
 
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -17,14 +15,10 @@ import org.springframework.stereotype.Service;
 
 /**
  * 권한·제한메뉴 기반 메뉴/경로 접근 판단 + 대/중/소 트리
- * restricted 메뉴 · 회원/메뉴 API: admin·hwlee (권한 01)
+ * restricted 메뉴 · 회원/메뉴 API: 권한 01 (계정명 화이트리스트 없음)
  */
 @Service
 public class MenuAccessService {
-
-  /** 회원·메뉴 관리 및 login-as 허용 계정 */
-  public static final Set<String> SUPER_ADMINS =
-      Collections.unmodifiableSet(new HashSet<>(Arrays.asList("admin", "hwlee")));
 
   private final FdMenuMapper fdMenuMapper;
 
@@ -37,17 +31,12 @@ public class MenuAccessService {
     return FdAuthService.AUTH_ADMIN.equals(authCd);
   }
 
-  public static boolean isSuperAdmin(String username) {
-    return username != null && SUPER_ADMINS.contains(username);
-  }
-
-  /** 회원·메뉴 관리 API/화면 — admin·hwlee 만 */
+  /** 회원·메뉴 관리 API/화면 — 권한 01 */
   public static boolean isManager(HttpSession session) {
-    return isSuperAdmin(AuthController.usernameOf(session))
-        && isAuthAdmin(AuthController.authCdOf(session));
+    return isAuthAdmin(AuthController.authCdOf(session));
   }
 
-  /** 권한에 매핑된 메뉴 — restricted 는 admin·hwlee 만 */
+  /** 권한에 매핑된 메뉴 — restricted 는 권한 01 만 */
   public List<FdMenu> menusFor(String username, String authCd) {
     if (authCd == null || authCd.trim().isEmpty()) {
       return new ArrayList<>();
@@ -55,7 +44,7 @@ public class MenuAccessService {
     String cd = authCd.trim();
     List<FdMenu> raw = fdMenuMapper.selectByAuthCd(cd);
     List<FdMenu> out = new ArrayList<>();
-    boolean canRestricted = isSuperAdmin(username);
+    boolean canRestricted = isAuthAdmin(cd);
     for (FdMenu m : raw) {
       if (m == null) continue;
       if ("Y".equalsIgnoreCase(m.getRestrictedYn()) && !canRestricted) {

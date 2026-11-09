@@ -14,7 +14,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
 
 /**
  * 미로그인 차단 + 권한(메뉴) 기반 접근 제어
- * 회원·메뉴·권한 API: admin·hwlee (MenuAccessService.isManager)
+ * 회원·메뉴·권한 API: 권한 01 (MenuAccessService.isManager)
  */
 @Component
 @Order(1)
@@ -64,7 +64,7 @@ public class AuthFilter extends OncePerRequestFilter {
     String username = AuthController.usernameOf(session);
     String authCd = AuthController.authCdOf(session);
 
-    // 회원·메뉴·권한 API/화면: admin·hwlee
+    // 회원·메뉴·권한 API/화면: 권한 01
     if (isManagerApi(path)) {
       if (!MenuAccessService.isManager(session)) {
         deny(path, response, ctx);

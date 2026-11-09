@@ -3473,7 +3473,7 @@ document.addEventListener('DOMContentLoaded', async ()=>{
       if (!me || !me.ok) return;
       window.FD_USER = me;
       ownerUser = me.username || '';
-      // 일반·guest(포폴)는 항상 본인 데이터만
+      // 권한 01이 아니면 본인 데이터만
       if (typeof fdCanPickOwner === 'function' && !fdCanPickOwner()) {
         ownerUser = me.username || '';
         try { localStorage.removeItem(OWNER_KEY); } catch (e) {}
