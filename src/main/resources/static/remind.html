@@ -84,8 +84,25 @@
           <div class="fd-field"><label>날짜 <span class="req">*</span></label><input type="date" id="remindDate" required></div>
           <div class="fd-field"><label>제목 <span class="req">*</span></label><input type="text" id="title" maxlength="200" required></div>
           <div class="fd-field"><label>내용</label><textarea id="content" rows="3" placeholder="메모"></textarea></div>
-          <div class="fd-field">
-            <label><input type="checkbox" id="doneYn"> 완료</label>
+          <div class="fd-field fd-done-field">
+            <div class="fd-toggle-row">
+              <div class="fd-toggle-copy">
+                <span class="fd-toggle-title">완료 여부</span>
+                <span class="fd-toggle-desc">
+                완료된 리마인드로 표시합니다.
+            </span>
+              </div>
+
+              <label class="fd-switch" for="doneYn">
+                <input
+                        type="checkbox"
+                        id="doneYn"
+                        role="switch"
+                        aria-label="완료 여부"
+                >
+                <span class="fd-switch-track"></span>
+              </label>
+            </div>
           </div>
           <div class="form-actions">
             <button type="submit" class="fd-btn fd-btn-primary" id="btnSave">저장</button>
